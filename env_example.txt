@@ -1,0 +1,10 @@
+# Facebook Ads API Configuration
+FACEBOOK_ACCESS_TOKEN=your_facebook_access_token_here
+FACEBOOK_ACCOUNT_IDS=your_account_ids_here
+
+# OpenAI API Configuration
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Flask Configuration
+FLASK_SECRET_KEY=your_secret_key_here
+FLASK_ENV=development
