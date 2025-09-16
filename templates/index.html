@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Ads Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary:#247ba0; }
+        .brand { color: var(--primary); }
+        .btn-primary { background-color: var(--primary); }
+        .btn-primary:hover { filter: brightness(0.95); }
+        .chip { background-color: rgba(36,123,160,.1); color:#0f3e52; }
+        .chatbot-toggle { position: fixed; bottom: 20px; right: 20px; z-index: 1000; }
+        .chatbot-container { position: fixed; bottom: 80px; right: 20px; z-index: 999; display: none; }
+        .chatbot-messages { max-height: 400px; overflow-y: auto; }
+        .message { margin: 8px 0; padding: 8px 12px; border-radius: 8px; }
+        .user-message { background-color: var(--primary); color: white; margin-left: 20px; }
+        .bot-message { background-color: #f3f4f6; color: #374151; margin-right: 20px; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <header class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-5">
+                <div>
+                    <h1 class="text-2xl font-bold brand">Facebook Ads Dashboard</h1>
+                    <p class="text-gray-600">Phân tích hiệu suất quảng cáo Facebook</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-500">Cập nhật:</p>
+                    <p id="last-update" class="text-sm font-medium text-gray-900">Đang tải...</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6 border border-gray-100">
+                <div class="flex items-center">
+                    <div class="w-9 h-9 rounded-md flex items-center justify-center" style="background-color:#e6f2f7;">
+                        <svg class="w-5 h-5 brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <div class="text-sm text-gray-500">Tổng số chiến dịch</div>
+                        <div id="total-campaigns" class="text-xl font-semibold">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 border border-gray-100">
+                <div class="flex items-center">
+                    <div class="w-9 h-9 rounded-md flex items-center justify-center" style="background-color:#e8f7ee;">
+                        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <div class="text-sm text-gray-500">Đang hoạt động</div>
+                        <div id="active-campaigns" class="text-xl font-semibold">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 border border-gray-100">
+                <div class="flex items-center">
+                    <div class="w-9 h-9 rounded-md flex items-center justify-center" style="background-color:#efe7fb;">
+                        <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <div class="text-sm text-gray-500">Tạm dừng/khác</div>
+                        <div id="paused-campaigns" class="text-xl font-semibold">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="bg-white rounded-lg shadow p-6 border border-gray-100">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Số chiến dịch theo Mục tiêu</h3>
+                </div>
+                <div style="height:300px"><canvas id="objectiveChart"></canvas></div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6 border border-gray-100">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Số chiến dịch theo Trạng thái</h3>
+                </div>
+                <div style="height:300px"><canvas id="statusChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow border border-gray-100">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h3 class="text-lg font-semibold">Danh sách Chiến dịch</h3>
+                <div class="flex items-center gap-2 text-sm">
+                    <label>Status</label>
+                    <select id="filter-status" class="border px-2 py-1 rounded">
+                        <option value="ALL" selected>Tất cả</option>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="PAUSED">PAUSED</option>
+                        <option value="ARCHIVED">ARCHIVED</option>
+                    </select>
+                    <label class="ml-3">Objective</label>
+                    <select id="filter-objective" class="border px-2 py-1 rounded">
+                        <option value="ALL" selected>Tất cả</option>
+                    </select>
+                    <button id="btn-export-campaigns" class="ml-3 px-3 py-1 rounded border" style="border-color:#247ba0;color:#247ba0;">Export CSV</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên Chiến dịch</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mục tiêu</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stop</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Insights</th>
+                        </tr>
+                    </thead>
+                    <tbody id="campaigns-table" class="bg-white divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow mt-8 hidden border border-gray-100" id="insights-panel">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h3 class="text-lg font-semibold">Insights Chiến dịch</h3>
+                <button id="close-insights" class="text-sm text-gray-600 hover:text-gray-900">Đóng</button>
+            </div>
+            <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div>
+                    <div class="text-sm text-gray-500">Impressions</div>
+                    <div id="insights-imp" class="text-2xl font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Clicks</div>
+                    <div id="insights-clicks" class="text-2xl font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Spend</div>
+                    <div id="insights-spend" class="text-2xl font-semibold">$0</div>
+                </div>
+            </div>
+            <div class="p-6">
+                <div style="height:320px"><canvas id="insightsChart"></canvas></div>
+            </div>
+            <div class="px-6 pb-6">
+                <div class="flex flex-wrap items-center gap-3 mb-3">
+                    <div class="inline-flex rounded-md shadow-sm" role="group">
+                        <button id="btn-break-placement" class="px-3 py-1 text-sm text-white btn-primary rounded-l">Placement</button>
+                        <button id="btn-break-age" class="px-3 py-1 text-sm border" style="border-color:#247ba0;color:#247ba0;">Age/Gender</button>
+                        <button id="btn-break-country" class="px-3 py-1 text-sm border rounded-r" style="border-color:#247ba0;color:#247ba0;">Country</button>
+                    </div>
+                    <div class="ml-auto flex items-center gap-2 text-sm">
+                        <label>Khoảng ngày</label>
+                        <select id="date-preset" class="border px-2 py-1 rounded">
+                            <option value="last_7d">7 ngày</option>
+                            <option value="last_30d" selected>30 ngày</option>
+                            <option value="last_90d">90 ngày</option>
+                            <option value="lifetime">Lifetime</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="height:280px"><canvas id="breakdownChart"></canvas></div>
+                <div class="mt-6">
+                    <h4 class="font-medium mb-2">Ads trong chiến dịch</h4>
+                    <div id="creative-list" class="overflow-x-auto"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <button id="chatbot-toggle" class="chatbot-toggle text-white rounded-full p-4 shadow-lg btn-primary">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+        </svg>
+    </button>
+
+    <div id="chatbot-container" class="chatbot-container bg-white rounded-lg shadow-lg w-80">
+        <div class="text-white px-4 py-3 rounded-t-lg btn-primary">
+            <h3 class="font-medium">Facebook Ads Assistant</h3>
+            <p class="text-sm opacity-90">Hỏi tôi về dữ liệu quảng cáo</p>
+        </div>
+        <div class="p-4">
+            <div id="chatbot-messages" class="chatbot-messages mb-4">
+                <div class="message bot-message">Xin chào! Hãy hỏi tôi bất kỳ câu hỏi nào.</div>
+            </div>
+            <div class="flex space-x-2">
+                <input type="text" id="chatbot-input" placeholder="Nhập câu hỏi..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none">
+                <button id="chatbot-send" class="px-4 py-2 text-white rounded-md btn-primary">Gửi</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        let adsData = null;
+        let charts = {};
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAdsData();
+            initializeChatbot();
+        });
+
+        async function loadAdsData() {
+            try {
+                const response = await fetch('/api/ads-data');
+                adsData = await response.json();
+                if (adsData.error) return;
+                updateDashboard(adsData);
+            } catch (e) { console.error(e); }
+        }
+
+        function updateDashboard(data) {
+            const lastUpdate = document.getElementById('last-update');
+            if (data.extraction_date) {
+                const d = new Date(data.extraction_date);
+                lastUpdate.textContent = d.toLocaleString('vi-VN');
+            }
+            const total = data.campaigns.length;
+            const active = data.campaigns.filter(c => c.status === 'ACTIVE').length;
+            const paused = total - active;
+            document.getElementById('total-campaigns').textContent = total.toLocaleString();
+            document.getElementById('active-campaigns').textContent = active.toLocaleString();
+            document.getElementById('paused-campaigns').textContent = paused.toLocaleString();
+            updateCampaignsTable(data.campaigns);
+            createCharts(data.campaigns);
+        }
+
+        function updateCampaignsTable(campaigns) {
+            const tbody = document.getElementById('campaigns-table');
+            tbody.innerHTML = '';
+            campaigns.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${c.campaign_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${c.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${c.status}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${c.objective}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${c.created_time || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${c.start_time || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${c.stop_time || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm"><button class="px-3 py-1 text-white rounded btn-primary" onclick="viewInsights('${c.campaign_id}', '${c.status}')">Xem</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function createCharts(campaigns) {
+            const truncate = (s, n=20) => (s||'').length>n ? (s.slice(0,n-1)+'…') : (s||'Unknown');
+            const objCounts = {};
+            const statusCounts = {};
+            campaigns.forEach(c=>{ objCounts[c.objective]=(objCounts[c.objective]||0)+1; statusCounts[c.status]=(statusCounts[c.status]||0)+1; });
+            const objEntries = Object.entries(objCounts).sort((a,b)=>b[1]-a[1]).slice(0,10);
+            const objLabels = objEntries.map(([k])=>truncate(k));
+            const objValues = objEntries.map(([,v])=>v);
+            const statusLabels = Object.keys(statusCounts);
+            const statusValues = Object.values(statusCounts);
+            const objCtx = document.getElementById('objectiveChart').getContext('2d');
+            charts.objective && charts.objective.destroy();
+            charts.objective = new Chart(objCtx,{type:'bar',data:{labels:objLabels,datasets:[{label:'Số chiến dịch',data:objValues,backgroundColor:'#247ba0'}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{autoSkip:true,maxRotation:0}},y:{beginAtZero:true,precision:0}}}});
+            const stCtx = document.getElementById('statusChart').getContext('2d');
+            charts.status && charts.status.destroy();
+            charts.status = new Chart(stCtx,{type:'doughnut',data:{labels:statusLabels,datasets:[{data:statusValues,backgroundColor:['#10b981','#f59e0b','#6b7280','#ef4444','#3b82f6']} ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});
+        }
+
+        async function viewInsights(campaignId, status) {
+            try {
+                const res = await fetch(`/api/campaign-insights?campaign_id=${encodeURIComponent(campaignId)}&status=${encodeURIComponent(status||'')}`);
+                const data = await res.json();
+                if (data.error) { alert('Không lấy được insights'); return; }
+                const panel = document.getElementById('insights-panel');
+                panel.classList.remove('hidden'); panel.style.display='block';
+                document.getElementById('insights-imp').textContent = (data.totals.impressions||0).toLocaleString();
+                document.getElementById('insights-clicks').textContent = (data.totals.clicks||0).toLocaleString();
+                document.getElementById('insights-spend').textContent = '$' + (data.totals.spend||0).toLocaleString();
+                const rows = Array.isArray(data.daily)?data.daily:[];
+                const labels = rows.map(d=>d.date_start||d.date||d.date_stop||'').slice(-30);
+                const imp = rows.map(d=>parseInt(d.impressions||0)).slice(-30);
+                const spend = rows.map(d=>parseFloat(d.spend||0)).slice(-30);
+                const ctx = document.getElementById('insightsChart').getContext('2d');
+                charts.insights && charts.insights.destroy();
+                charts.insights = new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Impressions',data:imp,borderColor:'#247ba0',backgroundColor:'rgba(36,123,160,0.15)',tension:.3,fill:true},{label:'Spend',data:spend,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,0.1)',tension:.3,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true},y1:{position:'right',beginAtZero:true}}}});
+                panel.scrollIntoView({behavior:'smooth',block:'start'});
+            } catch (e) { console.error(e); }
+        }
+
+        document.addEventListener('DOMContentLoaded',()=>{
+            const closeBtn=document.getElementById('close-insights');
+            if(closeBtn){ closeBtn.addEventListener('click',()=>{ document.getElementById('insights-panel').classList.add('hidden'); }); }
+        });
+
+        function initializeChatbot(){
+            const toggleBtn=document.getElementById('chatbot-toggle');
+            const container=document.getElementById('chatbot-container');
+            const input=document.getElementById('chatbot-input');
+            const sendBtn=document.getElementById('chatbot-send');
+            toggleBtn.addEventListener('click',()=>{ container.style.display=container.style.display==='none'?'block':'none'; });
+            function sendMessage(){ const q=input.value.trim(); if(!q) return; addMessage(q,'user'); input.value=''; addMessage('Đang xử lý...','bot'); fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})}).then(r=>r.json()).then(d=>{ removeLastMessage(); addMessage(d.error?('Lỗi: '+d.error):d.answer,'bot');}).catch(()=>{ removeLastMessage(); addMessage('Lỗi kết nối.','bot');}); }
+            sendBtn.addEventListener('click',sendMessage); input.addEventListener('keypress',e=>{ if(e.key==='Enter') sendMessage(); });
+        }
+        function addMessage(text,type){ const box=document.getElementById('chatbot-messages'); const div=document.createElement('div'); div.className=`message ${type}-message`; div.textContent=text; box.appendChild(div); box.scrollTop=box.scrollHeight; }
+        function removeLastMessage(){ const box=document.getElementById('chatbot-messages'); const msgs=box.querySelectorAll('.message'); if(msgs.length>0) msgs[msgs.length-1].remove(); }
+        async function fetchBreakdown(campaignId, kind){
+            const preset=document.getElementById('date-preset')?.value||'last_30d';
+            const res = await fetch(`/api/campaign-breakdown?campaign_id=${encodeURIComponent(campaignId)}&kind=${kind}&date_preset=${encodeURIComponent(preset)}`);
+            return await res.json();
+        }
+        async function fetchAds(campaignId){
+            const preset=document.getElementById('date-preset')?.value||'last_30d';
+            const res = await fetch(`/api/campaign-ads?campaign_id=${encodeURIComponent(campaignId)}&date_preset=${encodeURIComponent(preset)}`);
+            return await res.json();
+        }
+        function toCSV(rows){ if(!rows||!rows.length) return ''; const keys=Object.keys(rows[0]); const esc=s=>`"${String(s??'').replace(/"/g,'""')}"`; return [keys.join(','),...rows.map(r=>keys.map(k=>esc(r[k])).join(','))].join('\n'); }
+        function mapPlacementLabel(p){
+            const m={
+                'facebook:feed':'Facebook News Feed',
+                'facebook:facebook_profile_feed':'Feed Profile',
+                'facebook:video_feeds':'Video Feed',
+                'facebook:story':'Stories',
+                'instagram:stream':'Feed',
+                'instagram:story':'Stories',
+                'instagram:reels':'Reels',
+                'audience_network:classic':'Audience Network',
+                'messenger:inbox':'Messenger Inbox',
+                'messenger:story':'Messenger Stories'
+            };
+            if(!p) return 'Unknown';
+            const key=p.toLowerCase();
+            if(m[key]) return m[key];
+            // try format like publisher:position
+            const parts=key.split(':');
+            if(parts.length===2){
+                const prettyPub=parts[0]==='facebook'?'':parts[0]==='instagram'?'Instagram':parts[0]==='messenger'?'Messenger':parts[0]==='audience_network'?'Audience Network':parts[0];
+                const pos=parts[1].replace(/_/g,' ');
+                return `${prettyPub} ${pos.charAt(0).toUpperCase()+pos.slice(1)}`;
+            }
+            return p;
+        }
+        function renderBreakdown(kind, rows){
+            const ctx = document.getElementById('breakdownChart').getContext('2d');
+            charts.breakdown && charts.breakdown.destroy();
+            let labels=[], values=[];
+            const keyMap={placement:'placement',age_gender:r=>`${r.age||''}/${r.gender||''}`,country:'country'};
+            rows.forEach(r=>{ const labelRaw = typeof keyMap[kind]==='function'?keyMap[kind](r):(r[keyMap[kind]]||'Unknown'); const label = (kind==='placement')?mapPlacementLabel(labelRaw):labelRaw; labels.push(label); values.push(parseInt(r.impressions||0)); })
+            charts.breakdown = new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'Impressions',data:values,backgroundColor:'#247ba0'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}});
+        }
+        function renderCreatives(items){
+            const box=document.getElementById('creative-list');
+            box.innerHTML='';
+            if(!items || !items.length){ box.innerHTML='<div class="text-sm text-gray-500">Không có dữ liệu ads.</div>'; return; }
+            const table=document.createElement('table');
+            table.className='min-w-full divide-y divide-gray-200 text-sm';
+            table.innerHTML=`<thead class="bg-gray-50"><tr><th class="px-3 py-2 text-left">Ad</th><th class="px-3 py-2 text-left">Status</th><th class="px-3 py-2 text-left">Impr</th><th class="px-3 py-2 text-left">Clicks</th><th class="px-3 py-2 text-left">Spend</th></tr></thead><tbody></tbody>`;
+            const tb=table.querySelector('tbody');
+            items.forEach(it=>{
+                const ins=it.insights||{};
+                const tr=document.createElement('tr');
+                tr.innerHTML=`<td class="px-3 py-2">${it.ad.name||it.ad.id}</td><td class="px-3 py-2">${it.ad.status||''}</td><td class="px-3 py-2">${ins.impressions||0}</td><td class="px-3 py-2">${ins.clicks||0}</td><td class="px-3 py-2">$${ins.spend||0}</td>`;
+                tb.appendChild(tr);
+            })
+            box.appendChild(table);
+        }
+        // Wire buttons
+        document.addEventListener('DOMContentLoaded',()=>{
+            let currentCampaign='';
+            const patchView=window.viewInsights;
+            function highlight(kind){
+                const a=document.getElementById('btn-break-placement');
+                const b=document.getElementById('btn-break-age');
+                const c=document.getElementById('btn-break-country');
+                [a,b,c].forEach(x=>{ if(!x) return; x.classList.remove('btn-primary','text-white'); x.style.backgroundColor=''; x.style.color='#247ba0'; x.classList.add('border'); });
+                const map={placement:a,age_gender:b,country:c};
+                const btn=map[kind]; if(btn){ btn.classList.remove('border'); btn.classList.add('btn-primary','text-white'); btn.style.color='#fff'; }
+            }
+            function applyFilters(data){
+                const fs=document.getElementById('filter-status').value;
+                const fo=document.getElementById('filter-objective').value;
+                let items=data.campaigns.slice();
+                if(fs!=='ALL') items=items.filter(x=>x.status===fs);
+                if(fo!=='ALL') items=items.filter(x=>x.objective===fo);
+                updateCampaignsTable(items);
+                createCharts(items);
+            }
+            // populate objective options after load
+            const oldLoad=window.loadAdsData;
+            window.loadAdsData=async ()=>{ await oldLoad(); if(!adsData||!adsData.campaigns) return; const sel=document.getElementById('filter-objective'); const set=[...new Set(adsData.campaigns.map(c=>c.objective))]; sel.innerHTML='<option value="ALL" selected>Tất cả</option>'+set.map(o=>`<option value="${o}">${o}</option>`).join(''); applyFilters(adsData); }
+            document.getElementById('filter-status').onchange=()=>applyFilters(adsData);
+            document.getElementById('filter-objective').onchange=()=>applyFilters(adsData);
+            document.getElementById('btn-export-campaigns').onclick=()=>{ const rows=(adsData?.campaigns||[]).map(c=>({id:c.campaign_id,name:c.campaign_name,status:c.status,objective:c.objective,created:c.created_time,start:c.start_time,stop:c.stop_time})); const blob=new Blob([toCSV(rows)],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='campaigns.csv'; a.click(); URL.revokeObjectURL(url); };
+            window.viewInsights=async (campaignId,status)=>{
+                currentCampaign=campaignId; await patchView(campaignId,status);
+                const load=(kind)=>{ highlight(kind); const box=document.getElementById('breakdownChart').parentElement; box.classList.add('animate-pulse'); fetchBreakdown(currentCampaign,kind).then(d=>{ box.classList.remove('animate-pulse'); if(!d.error) renderBreakdown(kind,d.rows||[]);}); };
+                document.getElementById('btn-break-placement').onclick=()=>load('placement');
+                document.getElementById('btn-break-age').onclick=()=>load('age_gender');
+                document.getElementById('btn-break-country').onclick=()=>load('country');
+                document.getElementById('date-preset').onchange=()=>{ load('placement'); fetchAds(currentCampaign).then(d=>{ if(!d.error) renderCreatives(d.items||[]); }); };
+                load('placement');
+                fetchAds(currentCampaign).then(d=>{ if(!d.error) renderCreatives(d.items||[]); })
+            }
+        })
+    </script>
+</body>
+</html>
