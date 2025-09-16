@@ -31,6 +31,7 @@
                 <div class="text-right">
                     <p class="text-sm text-gray-500">Cập nhật:</p>
                     <p id="last-update" class="text-sm font-medium text-gray-900">Đang tải...</p>
+                    <button id="btn-refresh" class="mt-2 px-3 py-1 text-white rounded btn-primary text-sm">Cập nhật dữ liệu</button>
                 </div>
             </div>
         </div>
@@ -204,6 +205,12 @@
                 <input type="text" id="chatbot-input" placeholder="Nhập câu hỏi..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none">
                 <button id="chatbot-send" class="px-4 py-2 text-white rounded-md btn-primary">Gửi</button>
             </div>
+            <div class="mt-3 grid grid-cols-2 gap-2">
+                <button class="px-3 py-2 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;" data-suggest="Tóm tắt hiệu suất 7 ngày qua của campaign đang xem">Tóm tắt 7 ngày</button>
+                <button class="px-3 py-2 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;" data-suggest="Tìm ngày có chi tiêu bất thường và giải thích">Tìm outlier</button>
+                <button class="px-3 py-2 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;" data-suggest="Đề xuất 3 hành động để giảm CPM 15% dựa trên dữ liệu">Gợi ý tối ưu</button>
+                <button class="px-3 py-2 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;" data-suggest="Top 3 placement hiệu quả nhất theo impressions và CPC">Top placement</button>
+            </div>
         </div>
     </div>
     <script>
@@ -239,6 +246,23 @@
             updateCampaignsTable(data.campaigns);
             createCharts(data.campaigns);
         }
+
+        // Manual refresh
+        document.addEventListener('DOMContentLoaded',()=>{
+            const btn=document.getElementById('btn-refresh');
+            if(btn){
+                btn.addEventListener('click',async ()=>{
+                    btn.disabled=true; btn.textContent='Đang cập nhật...';
+                    try{
+                        const res=await fetch('/api/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({start_date:'2023-01-01'})});
+                        const j=await res.json();
+                        if(!j.ok){ alert('Không cập nhật được dữ liệu: '+(j.error||'unknown')); }
+                        await loadAdsData();
+                    }catch(e){ alert('Lỗi kết nối khi cập nhật'); }
+                    finally{ btn.disabled=false; btn.textContent='Cập nhật dữ liệu'; }
+                });
+            }
+        });
 
         function updateCampaignsTable(campaigns) {
             const tbody = document.getElementById('campaigns-table');
@@ -313,8 +337,18 @@
             const input=document.getElementById('chatbot-input');
             const sendBtn=document.getElementById('chatbot-send');
             toggleBtn.addEventListener('click',()=>{ container.style.display=container.style.display==='none'?'block':'none'; });
-            function sendMessage(){ const q=input.value.trim(); if(!q) return; addMessage(q,'user'); input.value=''; addMessage('Đang xử lý...','bot'); fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})}).then(r=>r.json()).then(d=>{ removeLastMessage(); addMessage(d.error?('Lỗi: '+d.error):d.answer,'bot');}).catch(()=>{ removeLastMessage(); addMessage('Lỗi kết nối.','bot');}); }
+            function buildContext(){
+                // Lấy dữ liệu đang có trong trang làm context cho bot
+                const ctx={
+                    campaigns_count: adsData?.campaigns?.length||0,
+                    // Thêm dữ liệu daily gần nhất của biểu đồ nếu có
+                };
+                return ctx;
+            }
+            function sendMessage(q){ if(!q){ q=input.value.trim(); } if(!q) return; addMessage(q,'user'); input.value=''; addMessage('Đang xử lý...','bot'); fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,context:buildContext()})}).then(r=>r.json()).then(d=>{ removeLastMessage(); addMessage(d.error?('Lỗi: '+d.error):d.answer,'bot');}).catch(()=>{ removeLastMessage(); addMessage('Lỗi kết nối.','bot');}); }
             sendBtn.addEventListener('click',sendMessage); input.addEventListener('keypress',e=>{ if(e.key==='Enter') sendMessage(); });
+            // Nút gợi ý nhanh
+            document.querySelectorAll('[data-suggest]').forEach(btn=>{ btn.addEventListener('click',()=> sendMessage(btn.getAttribute('data-suggest'))); });
         }
         function addMessage(text,type){ const box=document.getElementById('chatbot-messages'); const div=document.createElement('div'); div.className=`message ${type}-message`; div.textContent=text; box.appendChild(div); box.scrollTop=box.scrollHeight; }
         function removeLastMessage(){ const box=document.getElementById('chatbot-messages'); const msgs=box.querySelectorAll('.message'); if(msgs.length>0) msgs[msgs.length-1].remove(); }
@@ -357,8 +391,8 @@
                 'instagram:story':'Stories',
                 'instagram:reels':'Reels',
                 'audience_network:classic':'Audience Network',
-                'messenger:inbox':'Messenger Inbox',
-                'messenger:story':'Messenger Stories'
+                'messenger:inbox':'Inbox',
+                'messenger:story':'Stories'
             };
             if(!p) return 'Unknown';
             const key=p.toLowerCase();
@@ -366,7 +400,7 @@
             // try format like publisher:position
             const parts=key.split(':');
             if(parts.length===2){
-                const prettyPub=parts[0]==='facebook'?'':parts[0]==='instagram'?'Instagram':parts[0]==='messenger'?'Messenger':parts[0]==='audience_network'?'Audience Network':parts[0];
+                const prettyPub=parts[0]==='facebook'?'':parts[0]==='instagram'?'':parts[0]==='messenger'?'':parts[0]==='audience_network'?'Audience Network':parts[0];
                 const pos=parts[1].replace(/_/g,' ');
                 return `${prettyPub} ${pos.charAt(0).toUpperCase()+pos.slice(1)}`;
             }

@@ -12,6 +12,7 @@ from typing import Dict, Any
 from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
 import requests
+from facebook_ads_extractor import FacebookAdsExtractor
 
 # Cấu hình logging
 logging.basicConfig(level=logging.INFO)
@@ -37,23 +38,21 @@ class OpenAIChatbot:
         if not self.api_key:
             logger.warning("OPENAI_API_KEY không được cấu hình")
     
-    def ask_question(self, question: str, ads_data: Dict[str, Any]) -> str:
-        """Gửi câu hỏi đến OpenAI API với context dữ liệu quảng cáo"""
+    def ask_question(self, question: str, context: Dict[str, Any]) -> str:
+        """Gửi câu hỏi đến OpenAI API với context dữ liệu quảng cáo (insights/daily/breakdown)"""
         if not self.api_key:
             return "Xin lỗi, API key chưa được cấu hình. Vui lòng kiểm tra cài đặt."
         
         try:
-            # Tạo prompt với context dữ liệu
-            system_prompt = """Bạn là một chuyên gia phân tích quảng cáo Facebook. 
-            Dựa trên dữ liệu quảng cáo được cung cấp, hãy trả lời câu hỏi của người dùng một cách ngắn gọn và chính xác.
-            Chỉ sử dụng thông tin có trong dữ liệu được cung cấp."""
-            
-            user_prompt = f"""Dữ liệu quảng cáo Facebook:
-            {json.dumps(ads_data, ensure_ascii=False, indent=2)}
-            
-            Câu hỏi: {question}
-            
-            Hãy trả lời dựa trên dữ liệu trên."""
+            system_prompt = (
+                "Bạn là chuyên gia phân tích Facebook Ads. Chỉ trả lời dựa trên dữ liệu được cung cấp, "
+                "không suy diễn hoặc bịa thêm. Nếu dữ liệu không đủ, hãy nói 'chưa đủ dữ liệu'."
+            )
+            user_prompt = (
+                "Ngữ cảnh dashboard (JSON):\n" + json.dumps(context or {}, ensure_ascii=False, indent=2) +
+                "\n\nCâu hỏi: " + question +
+                "\n\nYêu cầu: trả lời ngắn gọn, gạch đầu dòng rõ ràng, đề xuất hành động nếu phù hợp."
+            )
             
             headers = {
                 'Authorization': f'Bearer {self.api_key}',
@@ -124,18 +123,22 @@ def ask_question():
     try:
         data = request.get_json()
         question = data.get('question', '').strip()
+        context = data.get('context') or {}
         
         if not question:
             return jsonify({'error': 'Câu hỏi không được để trống'}), 400
         
-        # Tải dữ liệu quảng cáo
-        ads_data = load_ads_data()
+        # Ghép thêm metadata chung từ file
+        global_data = load_ads_data()
+        if isinstance(context, dict):
+            context.setdefault('extraction_date', global_data.get('extraction_date'))
+            context.setdefault('campaigns_count', len(global_data.get('campaigns', [])))
         
         # Khởi tạo chatbot
         chatbot = OpenAIChatbot()
         
         # Gửi câu hỏi
-        answer = chatbot.ask_question(question, ads_data)
+        answer = chatbot.ask_question(question, context)
         
         return jsonify({
             'question': question,
@@ -155,6 +158,19 @@ def health_check():
         'timestamp': datetime.now().isoformat(),
         'openai_configured': bool(os.getenv('OPENAI_API_KEY'))
     })
+
+@app.route('/api/refresh', methods=['POST'])
+def refresh_data():
+    """Chạy lại trích xuất dữ liệu và cập nhật ads_data.json"""
+    try:
+        start_date = request.json.get('start_date') if request.is_json else None
+        extractor = FacebookAdsExtractor()
+        data = extractor.extract_all_data(start_date or "2023-01-01")
+        ok = extractor.save_to_json(data, "ads_data.json")
+        return jsonify({'ok': bool(ok), 'campaigns': len(data.get('campaigns', []))})
+    except Exception as e:
+        logger.error(f"Lỗi refresh: {e}")
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
 @app.route('/api/campaign-insights')
 def api_campaign_insights():
