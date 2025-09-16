@@ -245,15 +245,17 @@
             tbody.innerHTML = '';
             campaigns.forEach(c => {
                 const tr = document.createElement('tr');
+                const fmt = (s)=>{ if(!s) return '-'; const d=new Date(s); return isNaN(d)? s : d.toLocaleDateString('vi-VN'); };
+                const titleCase = (s)=> (s||'').toLowerCase().replace(/_/g,' ').replace(/\b\w/g, m=>m.toUpperCase());
                 tr.innerHTML = `
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${c.campaign_name}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${c.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${c.status}</span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${c.objective}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${c.created_time || ''}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${c.start_time || '-'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${c.stop_time || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${titleCase(c.objective)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fmt(c.created_time)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fmt(c.start_time)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fmt(c.stop_time)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm"><button class="px-3 py-1 text-white rounded btn-primary" onclick="viewInsights('${c.campaign_id}', '${c.status}')">Xem</button></td>
                 `;
                 tbody.appendChild(tr);
@@ -285,9 +287,10 @@
                 if (data.error) { alert('Không lấy được insights'); return; }
                 const panel = document.getElementById('insights-panel');
                 panel.classList.remove('hidden'); panel.style.display='block';
-                document.getElementById('insights-imp').textContent = (data.totals.impressions||0).toLocaleString();
-                document.getElementById('insights-clicks').textContent = (data.totals.clicks||0).toLocaleString();
-                document.getElementById('insights-spend').textContent = '$' + (data.totals.spend||0).toLocaleString();
+                const vndFmt = new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0});
+                document.getElementById('insights-imp').textContent = (data.totals.impressions||0).toLocaleString('vi-VN');
+                document.getElementById('insights-clicks').textContent = (data.totals.clicks||0).toLocaleString('vi-VN');
+                document.getElementById('insights-spend').textContent = vndFmt.format(parseFloat(data.totals.spend||0));
                 const rows = Array.isArray(data.daily)?data.daily:[];
                 const labels = rows.map(d=>d.date_start||d.date||d.date_stop||'').slice(-30);
                 const imp = rows.map(d=>parseInt(d.impressions||0)).slice(-30);
@@ -342,6 +345,8 @@
             return data;
         }
         function toCSV(rows){ if(!rows||!rows.length) return ''; const keys=Object.keys(rows[0]); const esc=s=>`"${String(s??'').replace(/"/g,'""')}"`; return [keys.join(','),...rows.map(r=>keys.map(k=>esc(r[k])).join(','))].join('\n'); }
+        const VND_FMT = new Intl.NumberFormat('vi-VN',{ style:'currency', currency:'VND', maximumFractionDigits:0 });
+        const NUM_FMT = new Intl.NumberFormat('vi-VN');
         function mapPlacementLabel(p){
             const m={
                 'facebook:feed':'Facebook News Feed',
@@ -381,12 +386,12 @@
             if(!items || !items.length){ box.innerHTML='<div class="text-sm text-gray-500">Không có dữ liệu ads.</div>'; return; }
             const table=document.createElement('table');
             table.className='min-w-full divide-y divide-gray-200 text-sm';
-            table.innerHTML=`<thead class="bg-gray-50"><tr><th class="px-3 py-2 text-left">Ad</th><th class="px-3 py-2 text-left">Status</th><th class="px-3 py-2 text-left">Impr</th><th class="px-3 py-2 text-left">Clicks</th><th class="px-3 py-2 text-left">Spend</th></tr></thead><tbody></tbody>`;
+            table.innerHTML=`<thead class="bg-gray-50"><tr><th class="px-3 py-2 text-left">Ad</th><th class="px-3 py-2 text-left">Status</th><th class="px-3 py-2 text-left">Impr</th><th class="px-3 py-2 text-left">Clicks</th><th class="px-3 py-2 text-left">Chi phí</th></tr></thead><tbody></tbody>`;
             const tb=table.querySelector('tbody');
             items.forEach(it=>{
                 const ins=it.insights||{};
                 const tr=document.createElement('tr');
-                tr.innerHTML=`<td class="px-3 py-2">${it.ad.name||it.ad.id}</td><td class="px-3 py-2">${it.ad.status||''}</td><td class="px-3 py-2">${ins.impressions||0}</td><td class="px-3 py-2">${ins.clicks||0}</td><td class="px-3 py-2">$${ins.spend||0}</td>`;
+                tr.innerHTML=`<td class="px-3 py-2">${it.ad.name||it.ad.id}</td><td class="px-3 py-2">${it.ad.status||''}</td><td class="px-3 py-2">${NUM_FMT.format(parseInt(ins.impressions||0))}</td><td class="px-3 py-2">${NUM_FMT.format(parseInt(ins.clicks||0))}</td><td class="px-3 py-2">${VND_FMT.format(parseFloat(ins.spend||0))}</td>`;
                 tb.appendChild(tr);
             })
             box.appendChild(table);
