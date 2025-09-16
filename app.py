@@ -190,7 +190,15 @@ def api_campaign_insights():
 
         status, data = fetch(params)
         if status != 200:
-            return jsonify({'error': data.get('error', {'message': 'Unknown error'})}), status
+            # Phát hiện token hết hạn (code 190)
+            err = data.get('error', {})
+            if err.get('code') == 190:
+                return jsonify({'error': err, 'token_expired': True, 'totals': {}, 'daily': []})
+            # Trả về 200 để UI không fail, đồng thời thử fallback lifetime
+            params_f = {'access_token': token, 'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency', 'date_preset': 'lifetime'}
+            st2, d2 = fetch(params_f)
+            rows2 = d2.get('data', []) if st2 == 200 else []
+            return jsonify({'error': err or {'message': 'Unknown error'}, 'totals': {}, 'daily': rows2})
         rows = data.get('data', [])
 
         # Strategy 2: if empty, broaden window
@@ -247,6 +255,8 @@ def api_campaign_breakdown():
         campaign_id = request.args.get('campaign_id', '').strip()
         kind = request.args.get('kind', 'placement')  # placement | age_gender | country
         date_preset = request.args.get('date_preset', 'last_30d')
+        since = request.args.get('since')
+        until = request.args.get('until')
         if not campaign_id:
             return jsonify({'error': 'campaign_id is required'}), 400
         token = get_access_token()
@@ -262,27 +272,46 @@ def api_campaign_breakdown():
             'breakdowns': breakdowns,
             'date_preset': date_preset
         }
+        if since and until:
+            params['date_preset'] = 'custom'
+            params['since'] = since
+            params['until'] = until
         res = requests.get(f"{base_url}/{campaign_id}/insights", params=params, timeout=30)
         data = res.json()
         rows = []
         if res.status_code == 200:
             rows = data.get('data', [])
         else:
+            # Nếu custom khoảng ngày gây lỗi, thử last_30d
+            if since and until:
+                p2 = params.copy()
+                p2.pop('since', None); p2.pop('until', None)
+                p2['date_preset'] = 'last_30d'
+                res_try = requests.get(f"{base_url}/{campaign_id}/insights", params=p2, timeout=30)
+                if res_try.status_code == 200:
+                    rows = res_try.json().get('data', [])
+                    data = res_try.json()
+                    res = res_try
             # Fallback cho placement: thử publisher_platform + platform_position
-            if kind == 'placement':
-                fb_params = params.copy()
+            if not rows and kind == 'placement':
+                fb_params = (p2 if (since and until) else params).copy()
                 fb_params['breakdowns'] = 'publisher_platform,platform_position'
                 res2 = requests.get(f"{base_url}/{campaign_id}/insights", params=fb_params, timeout=30)
                 if res2.status_code == 200:
                     rows_raw = res2.json().get('data', [])
-                    # Gộp nhãn thành placement-like
                     for r in rows_raw:
                         r['placement'] = f"{r.get('publisher_platform','')}:{r.get('platform_position','')}"
                     rows = rows_raw
                 else:
-                    return jsonify({'error': data.get('error', {'message': 'Unknown error'})}), res.status_code
-            else:
-                return jsonify({'error': data.get('error', {'message': 'Unknown error'})}), res.status_code
+                    err = data.get('error', {})
+                    if err.get('code') == 190:
+                        return jsonify({'error': err, 'token_expired': True, 'rows': []})
+                    return jsonify({'error': err or {'message': 'Unknown error'}, 'rows': []})
+            elif not rows:
+                err = data.get('error', {})
+                if err.get('code') == 190:
+                    return jsonify({'error': err, 'token_expired': True, 'rows': []})
+                return jsonify({'error': err or {'message': 'Unknown error'}, 'rows': []})
         return jsonify({'rows': rows})
     except Exception as e:
         logger.error(f"Lỗi /api/campaign-breakdown: {e}")
@@ -303,7 +332,10 @@ def api_campaign_ads():
         ads_res = requests.get(f"{base_url}/{campaign_id}/ads", params={'access_token': token, 'fields': 'id,name,status,created_time', 'limit': 50}, timeout=30)
         ads_data = ads_res.json()
         if ads_res.status_code != 200:
-            return jsonify({'error': ads_data.get('error', {'message': 'Unknown error'})}), ads_res.status_code
+            err = ads_data.get('error', {})
+            if err.get('code') == 190:
+                return jsonify({'error': err, 'token_expired': True, 'items': []})
+            return jsonify({'error': err or {'message': 'Unknown error'}, 'items': []})
         ads = ads_data.get('data', [])
 
         # fetch insights per ad (lightweight)

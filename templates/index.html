@@ -154,6 +154,7 @@
                 <div style="height:320px"><canvas id="insightsChart"></canvas></div>
             </div>
             <div class="px-6 pb-6">
+                <div id="insights-note" class="hidden mb-3 text-sm bg-yellow-50 text-yellow-800 border border-yellow-200 rounded px-3 py-2"></div>
                 <div class="flex flex-wrap items-center gap-3 mb-3">
                     <div class="inline-flex rounded-md shadow-sm" role="group">
                         <button id="btn-break-placement" class="px-3 py-1 text-sm text-white btn-primary rounded-l">Placement</button>
@@ -167,7 +168,12 @@
                             <option value="last_30d" selected>30 ngày</option>
                             <option value="last_90d">90 ngày</option>
                             <option value="lifetime">Lifetime</option>
+                            <option value="custom">Custom</option>
                         </select>
+                        <input type="date" id="since" class="border px-2 py-1 rounded hidden">
+                        <span class="hidden" id="range-sep">→</span>
+                        <input type="date" id="until" class="border px-2 py-1 rounded hidden">
+                        <button id="apply-range" class="px-3 py-1 rounded border hidden" style="border-color:#247ba0;color:#247ba0;">Áp dụng</button>
                     </div>
                 </div>
                 <div style="height:280px"><canvas id="breakdownChart"></canvas></div>
@@ -311,13 +317,29 @@
         function removeLastMessage(){ const box=document.getElementById('chatbot-messages'); const msgs=box.querySelectorAll('.message'); if(msgs.length>0) msgs[msgs.length-1].remove(); }
         async function fetchBreakdown(campaignId, kind){
             const preset=document.getElementById('date-preset')?.value||'last_30d';
-            const res = await fetch(`/api/campaign-breakdown?campaign_id=${encodeURIComponent(campaignId)}&kind=${kind}&date_preset=${encodeURIComponent(preset)}`);
-            return await res.json();
+            let q=`date_preset=${encodeURIComponent(preset)}`;
+            if(preset==='custom'){
+                const s=document.getElementById('since').value; const u=document.getElementById('until').value;
+                if(s&&u) q=`since=${encodeURIComponent(s)}&until=${encodeURIComponent(u)}`;
+            }
+            const url=`/api/campaign-breakdown?campaign_id=${encodeURIComponent(campaignId)}&kind=${kind}&${q}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            console.log('BREAKDOWN', kind, url, data);
+            return data;
         }
         async function fetchAds(campaignId){
             const preset=document.getElementById('date-preset')?.value||'last_30d';
-            const res = await fetch(`/api/campaign-ads?campaign_id=${encodeURIComponent(campaignId)}&date_preset=${encodeURIComponent(preset)}`);
-            return await res.json();
+            let q=`date_preset=${encodeURIComponent(preset)}`;
+            if(preset==='custom'){
+                const s=document.getElementById('since').value; const u=document.getElementById('until').value;
+                if(s&&u) q=`since=${encodeURIComponent(s)}&until=${encodeURIComponent(u)}`;
+            }
+            const url=`/api/campaign-ads?campaign_id=${encodeURIComponent(campaignId)}&${q}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            console.log('ADS', url, data);
+            return data;
         }
         function toCSV(rows){ if(!rows||!rows.length) return ''; const keys=Object.keys(rows[0]); const esc=s=>`"${String(s??'').replace(/"/g,'""')}"`; return [keys.join(','),...rows.map(r=>keys.map(k=>esc(r[k])).join(','))].join('\n'); }
         function mapPlacementLabel(p){
@@ -398,13 +420,15 @@
             document.getElementById('btn-export-campaigns').onclick=()=>{ const rows=(adsData?.campaigns||[]).map(c=>({id:c.campaign_id,name:c.campaign_name,status:c.status,objective:c.objective,created:c.created_time,start:c.start_time,stop:c.stop_time})); const blob=new Blob([toCSV(rows)],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='campaigns.csv'; a.click(); URL.revokeObjectURL(url); };
             window.viewInsights=async (campaignId,status)=>{
                 currentCampaign=campaignId; await patchView(campaignId,status);
-                const load=(kind)=>{ highlight(kind); const box=document.getElementById('breakdownChart').parentElement; box.classList.add('animate-pulse'); fetchBreakdown(currentCampaign,kind).then(d=>{ box.classList.remove('animate-pulse'); if(!d.error) renderBreakdown(kind,d.rows||[]);}); };
+                const note=document.getElementById('insights-note'); if(note){ note.classList.add('hidden'); note.textContent=''; }
+                const load=(kind)=>{ highlight(kind); const box=document.getElementById('breakdownChart').parentElement; box.classList.add('animate-pulse'); fetchBreakdown(currentCampaign,kind).then(d=>{ box.classList.remove('animate-pulse'); if(d.token_expired){ alert('Access token đã hết hạn. Vui lòng cập nhật USER_TOKEN/.env và reload.'); return; } if(!d.error) renderBreakdown(kind,d.rows||[]); else console.warn('Breakdown error', d.error); }); };
                 document.getElementById('btn-break-placement').onclick=()=>load('placement');
                 document.getElementById('btn-break-age').onclick=()=>load('age_gender');
                 document.getElementById('btn-break-country').onclick=()=>load('country');
-                document.getElementById('date-preset').onchange=()=>{ load('placement'); fetchAds(currentCampaign).then(d=>{ if(!d.error) renderCreatives(d.items||[]); }); };
+                document.getElementById('date-preset').onchange=()=>{ const v=document.getElementById('date-preset').value; const show=v==='custom'; ['since','until','range-sep','apply-range'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.classList.toggle('hidden',!show);} }); if(!show){ load('placement'); fetchAds(currentCampaign).then(d=>{ if(!d.error) renderCreatives(d.items||[]); }); } };
+                document.getElementById('apply-range').onclick=()=>{ load('placement'); fetchAds(currentCampaign).then(d=>{ if(d.token_expired){ alert('Access token đã hết hạn. Vui lòng cập nhật USER_TOKEN/.env và reload.'); return; } if(!d.error) renderCreatives(d.items||[]); }); };
                 load('placement');
-                fetchAds(currentCampaign).then(d=>{ if(!d.error) renderCreatives(d.items||[]); })
+                fetchAds(currentCampaign).then(d=>{ if(d.token_expired){ alert('Access token đã hết hạn. Vui lòng cập nhật USER_TOKEN/.env và reload.'); return; } if(!d.error) renderCreatives(d.items||[]); })
             }
         })
     </script>
