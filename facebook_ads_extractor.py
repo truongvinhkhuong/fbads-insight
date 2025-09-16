@@ -23,7 +23,7 @@ class FacebookAdsExtractor:
         load_dotenv()
         self.access_token = os.getenv('FACEBOOK_ACCESS_TOKEN')
         self.account_ids = os.getenv('FACEBOOK_ACCOUNT_IDS', '').split(',')
-        self.base_url = "https://graph.facebook.com/v18.0"
+        self.base_url = "https://graph.facebook.com/v23.0"
         
         if not self.access_token:
             raise ValueError("FACEBOOK_ACCESS_TOKEN không được cấu hình")
