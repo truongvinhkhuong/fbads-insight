@@ -156,6 +156,88 @@
             </div>
             <div class="px-6 pb-6">
                 <div id="insights-note" class="hidden mb-3 text-sm bg-yellow-50 text-yellow-800 border border-yellow-200 rounded px-3 py-2"></div>
+                
+                <!-- AI Insights Section -->
+                <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-lg font-semibold text-gray-800 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                            </svg>
+                            AI Insights & Recommendations
+                        </h4>
+                        <button id="btn-ai-analysis" class="px-4 py-2 text-white rounded-lg btn-primary text-sm flex items-center hover:shadow-md transition-shadow" title="Phân tích AI sẽ đưa ra insights và đề xuất tối ưu dựa trên dữ liệu campaign hiện tại">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                            Phân tích AI
+                        </button>
+                    </div>
+                    
+                    <!-- AI Analysis Results -->
+                    <div id="ai-analysis-content" class="hidden">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <!-- Insights Panel -->
+                            <div class="bg-white rounded-lg p-4 border border-gray-200">
+                                <h5 class="font-semibold text-gray-700 mb-3 flex items-center">
+                                    <svg class="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Insights (AI Generated)
+                                </h5>
+                                <div id="ai-insights" class="text-sm text-gray-600 leading-relaxed">
+                                    <!-- AI insights sẽ được hiển thị ở đây -->
+                                </div>
+                            </div>
+                            
+                            <!-- Recommendations Panel -->
+                            <div class="bg-white rounded-lg p-4 border border-gray-200">
+                                <h5 class="font-semibold text-gray-700 mb-3 flex items-center">
+                                    <svg class="w-4 h-4 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Recommended Actions
+                                </h5>
+                                <div id="ai-recommendations" class="text-sm text-gray-600 leading-relaxed">
+                                    <!-- AI recommendations sẽ được hiển thị ở đây -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Analysis Timestamp & Cache Info -->
+                        <div class="mt-3 text-xs text-gray-500 text-center" id="ai-analysis-timestamp">
+                            <!-- Timestamp sẽ được hiển thị ở đây -->
+                        </div>
+                        <div class="mt-1 text-xs text-blue-600 text-center hidden" id="ai-cache-indicator">
+                            <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Kết quả từ cache (nhanh hơn)
+                        </div>
+                    </div>
+                    
+                    <!-- Loading State -->
+                    <div id="ai-loading" class="hidden text-center py-8">
+                        <div class="inline-flex items-center px-4 py-2 text-sm text-blue-600">
+                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            AI đang phân tích dữ liệu campaign...
+                        </div>
+                    </div>
+                    
+                    <!-- Error State -->
+                    <div id="ai-error" class="hidden text-center py-4">
+                        <div class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                            <svg class="w-5 h-5 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div id="ai-error-message">Có lỗi xảy ra khi phân tích AI</div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="flex flex-wrap items-center gap-3 mb-3">
                     <div class="inline-flex rounded-md shadow-sm" role="group">
                         <button id="btn-break-placement" class="px-3 py-1 text-sm text-white btn-primary rounded-l">Placement</button>
@@ -430,6 +512,122 @@
             })
             box.appendChild(table);
         }
+        // AI Analysis Functions
+        async function performAIAnalysis(campaignId) {
+            const aiContent = document.getElementById('ai-analysis-content');
+            const aiLoading = document.getElementById('ai-loading');
+            const aiError = document.getElementById('ai-error');
+            const aiErrorMsg = document.getElementById('ai-error-message');
+            
+            // Show loading state
+            aiContent.classList.add('hidden');
+            aiError.classList.add('hidden');
+            aiLoading.classList.remove('hidden');
+            
+            try {
+                const response = await fetch('/api/campaign-ai-insights', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        campaign_id: campaignId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Display results với error handling
+                    try {
+                        document.getElementById('ai-insights').innerHTML = formatAIResponse(data.insights);
+                        document.getElementById('ai-recommendations').innerHTML = formatAIResponse(data.recommendations);
+                    } catch (formatError) {
+                        console.error('Error formatting AI response:', formatError);
+                        console.log('Raw insights data:', data.insights);
+                        console.log('Raw recommendations data:', data.recommendations);
+                        
+                        // Fallback display
+                        document.getElementById('ai-insights').innerHTML = `<div class="text-sm text-gray-600">
+                            <strong>Insights:</strong><br>
+                            ${typeof data.insights === 'string' ? data.insights : JSON.stringify(data.insights, null, 2)}
+                        </div>`;
+                        document.getElementById('ai-recommendations').innerHTML = `<div class="text-sm text-gray-600">
+                            <strong>Recommendations:</strong><br>
+                            ${typeof data.recommendations === 'string' ? data.recommendations : JSON.stringify(data.recommendations, null, 2)}
+                        </div>`;
+                    }
+                    
+                    // Show timestamp
+                    const timestamp = new Date(data.timestamp).toLocaleString('vi-VN');
+                    document.getElementById('ai-analysis-timestamp').textContent = `Phân tích lúc: ${timestamp}`;
+                    
+                    // Show cache indicator if cached
+                    const cacheIndicator = document.getElementById('ai-cache-indicator');
+                    if (data.cached) {
+                        cacheIndicator.classList.remove('hidden');
+                    } else {
+                        cacheIndicator.classList.add('hidden');
+                    }
+                    
+                    // Show content
+                    aiLoading.classList.add('hidden');
+                    aiContent.classList.remove('hidden');
+                } else {
+                    throw new Error(data.error || 'Không thể phân tích AI');
+                }
+            } catch (error) {
+                console.error('AI Analysis Error:', error);
+                console.error('Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+                
+                aiErrorMsg.textContent = error.message || 'Có lỗi xảy ra khi phân tích AI';
+                aiLoading.classList.add('hidden');
+                aiError.classList.remove('hidden');
+            }
+        }
+        
+        function formatAIResponse(text) {
+            if (!text) return '<em>Không có dữ liệu</em>';
+            
+            // Đảm bảo text là string
+            let textStr = '';
+            if (typeof text === 'string') {
+                textStr = text;
+            } else if (typeof text === 'object') {
+                // Nếu là object, convert thành string
+                textStr = JSON.stringify(text, null, 2);
+            } else {
+                textStr = String(text);
+            }
+            
+            // Convert line breaks to HTML and add bullet points
+            return textStr
+                .split('\n')
+                .filter(line => line.trim())
+                .map(line => {
+                    const trimmed = line.trim();
+                    if (trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('*')) {
+                        return `<div class="flex items-start mb-2">
+                            <span class="text-blue-600 mr-2 mt-1">•</span>
+                            <span>${trimmed.substring(1).trim()}</span>
+                        </div>`;
+                    }
+                    return `<div class="mb-2">${trimmed}</div>`;
+                })
+                .join('');
+        }
+        
+        function resetAIState() {
+            document.getElementById('ai-analysis-content').classList.add('hidden');
+            document.getElementById('ai-loading').classList.add('hidden');
+            document.getElementById('ai-error').classList.add('hidden');
+            document.getElementById('ai-cache-indicator').classList.add('hidden');
+        }
+
         // Wire buttons
         document.addEventListener('DOMContentLoaded',()=>{
             let currentCampaign='';
@@ -457,8 +655,30 @@
             document.getElementById('filter-status').onchange=()=>applyFilters(adsData);
             document.getElementById('filter-objective').onchange=()=>applyFilters(adsData);
             document.getElementById('btn-export-campaigns').onclick=()=>{ const rows=(adsData?.campaigns||[]).map(c=>({id:c.campaign_id,name:c.campaign_name,status:c.status,objective:c.objective,created:c.created_time,start:c.start_time,stop:c.stop_time})); const blob=new Blob([toCSV(rows)],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='campaigns.csv'; a.click(); URL.revokeObjectURL(url); };
+            
+            // AI Analysis button
+            document.getElementById('btn-ai-analysis').onclick = () => {
+                if (currentCampaign) {
+                    // Disable button during analysis
+                    const btn = document.getElementById('btn-ai-analysis');
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Đang phân tích...';
+                    
+                    performAIAnalysis(currentCampaign).finally(() => {
+                        // Re-enable button
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    });
+                } else {
+                    alert('Vui lòng chọn một campaign trước khi phân tích AI');
+                }
+            };
+            
             window.viewInsights=async (campaignId,status)=>{
-                currentCampaign=campaignId; await patchView(campaignId,status);
+                currentCampaign=campaignId; 
+                resetAIState(); // Reset AI state when viewing new campaign
+                await patchView(campaignId,status);
                 const note=document.getElementById('insights-note'); if(note){ note.classList.add('hidden'); note.textContent=''; }
                 const load=(kind)=>{ highlight(kind); const box=document.getElementById('breakdownChart').parentElement; box.classList.add('animate-pulse'); fetchBreakdown(currentCampaign,kind).then(d=>{ box.classList.remove('animate-pulse'); if(d.token_expired){ alert('Access token đã hết hạn. Vui lòng cập nhật USER_TOKEN/.env và reload.'); return; } if(!d.error) renderBreakdown(kind,d.rows||[]); else console.warn('Breakdown error', d.error); }); };
                 document.getElementById('btn-break-placement').onclick=()=>load('placement');
