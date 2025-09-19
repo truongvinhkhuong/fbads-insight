@@ -1,7 +1,3 @@
-# Facebook Ads Dashboard & Chatbot (Tối giản để host website)
-
-Dự án tối giản để trích xuất dữ liệu Facebook Ads, hiển thị dashboard HTML (Chart.js + Tailwind CDN) và chatbot (OpenAI API) qua Flask. Không cần Docker, Nginx, systemd, cron.
-
 ## Yêu cầu
 - Python 3.9+
 - Facebook Ads Access Token
