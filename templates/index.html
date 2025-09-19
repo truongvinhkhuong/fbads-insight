@@ -111,10 +111,6 @@
                     <select id="filter-objective" class="border px-2 py-1 rounded">
                         <option value="ALL" selected>Tất cả</option>
                     </select>
-                    <label class="ml-3">Page</label>
-                    <select id="filter-page" class="border px-2 py-1 rounded">
-                        <option value="ALL" selected>Tất cả</option>
-                    </select>
                     <button id="btn-export-campaigns" class="ml-3 px-3 py-1 rounded border" style="border-color:#247ba0;color:#247ba0;">Export CSV</button>
                 </div>
             </div>
@@ -125,7 +121,6 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên Chiến dịch</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mục tiêu</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Page</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stop</th>
@@ -415,7 +410,6 @@
                         <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${c.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${c.status}</span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${titleCase(c.objective)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${c.page_name||'-'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fmt(c.created_time)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fmt(c.start_time)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fmt(c.stop_time)}</td>
@@ -733,20 +727,17 @@
             function applyFilters(data){
                 const fs=document.getElementById('filter-status').value;
                 const fo=document.getElementById('filter-objective').value;
-                const fp=document.getElementById('filter-page').value;
                 let items=data.campaigns.slice();
                 if(fs!=='ALL') items=items.filter(x=>x.status===fs);
                 if(fo!=='ALL') items=items.filter(x=>x.objective===fo);
-                if(fp!=='ALL') items=items.filter(x=>(x.page_id||'')===fp);
                 updateCampaignsTable(items);
                 createCharts(items);
             }
             // populate objective options after load
             const oldLoad=window.loadAdsData;
-            window.loadAdsData=async ()=>{ await oldLoad(); if(!adsData||!adsData.campaigns) return; const sel=document.getElementById('filter-objective'); const set=[...new Set(adsData.campaigns.map(c=>c.objective))]; sel.innerHTML='<option value="ALL" selected>Tất cả</option>'+set.map(o=>`<option value="${o}">${o}</option>`).join(''); const selp=document.getElementById('filter-page'); const pages=[...new Set(adsData.campaigns.map(c=>`${c.page_id||''}|${c.page_name||''}`))].filter(x=>x!=='|'); selp.innerHTML='<option value="ALL" selected>Tất cả</option>'+pages.map(p=>{ const [id,name]=p.split('|'); return `<option value="${id}">${name||id}</option>`; }).join(''); applyFilters(adsData); }
+            window.loadAdsData=async ()=>{ await oldLoad(); if(!adsData||!adsData.campaigns) return; const sel=document.getElementById('filter-objective'); const set=[...new Set(adsData.campaigns.map(c=>c.objective))]; sel.innerHTML='<option value="ALL" selected>Tất cả</option>'+set.map(o=>`<option value="${o}">${o}</option>`).join(''); applyFilters(adsData); }
             document.getElementById('filter-status').onchange=()=>applyFilters(adsData);
             document.getElementById('filter-objective').onchange=()=>applyFilters(adsData);
-            document.getElementById('filter-page').onchange=()=>applyFilters(adsData);
             document.getElementById('btn-export-campaigns').onclick=()=>{ const rows=(adsData?.campaigns||[]).map(c=>({id:c.campaign_id,name:c.campaign_name,status:c.status,objective:c.objective,created:c.created_time,start:c.start_time,stop:c.stop_time})); const blob=new Blob([toCSV(rows)],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='campaigns.csv'; a.click(); URL.revokeObjectURL(url); };
             
             // AI Analysis button
