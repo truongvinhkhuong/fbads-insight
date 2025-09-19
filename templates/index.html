@@ -111,6 +111,10 @@
                     <select id="filter-objective" class="border px-2 py-1 rounded">
                         <option value="ALL" selected>Tất cả</option>
                     </select>
+                    <label class="ml-3">Page</label>
+                    <select id="filter-page" class="border px-2 py-1 rounded">
+                        <option value="ALL" selected>Tất cả</option>
+                    </select>
                     <button id="btn-export-campaigns" class="ml-3 px-3 py-1 rounded border" style="border-color:#247ba0;color:#247ba0;">Export CSV</button>
                 </div>
             </div>
@@ -121,6 +125,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên Chiến dịch</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mục tiêu</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Page</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stop</th>
@@ -149,6 +154,42 @@
                 <div>
                     <div class="text-sm text-gray-500">Spend</div>
                     <div id="insights-spend" class="text-2xl font-semibold">$0</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Reach</div>
+                    <div id="insights-reach" class="text-2xl font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">CTR</div>
+                    <div id="insights-ctr" class="text-2xl font-semibold">0%</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Tần suất</div>
+                    <div id="insights-frequency" class="text-2xl font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Link Clicks</div>
+                    <div id="insights-link-clicks" class="text-2xl font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Unique Link Clicks</div>
+                    <div id="insights-unique-link-clicks" class="text-2xl font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Post Engagement</div>
+                    <div id="insights-engagement" class="text-2xl font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Photo Views</div>
+                    <div id="insights-photo-views" class="text-2xl font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Video Views</div>
+                    <div id="insights-video-views" class="text-2xl font-semibold">0</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Lượt xem tổng</div>
+                    <div id="insights-total-views" class="text-2xl font-semibold">0</div>
                 </div>
             </div>
             <div class="p-6">
@@ -346,6 +387,21 @@
             }
         });
 
+        function computeKetQua(c){
+            // Kết quả theo mục tiêu: ưu tiên link clicks, engagement, video views
+            const ins=c.insights||{};
+            const obj=(c.objective||'').toUpperCase();
+            if(obj.includes('TRAFFIC')){
+                return `${(ins.inline_link_clicks||ins.clicks||0)} Link clicks`;
+            }
+            if(obj.includes('ENGAGEMENT')){
+                const pe=ins.post_engagement||0; return `${pe} Engagement`;
+            }
+            if(obj.includes('VIDEO')){
+                const vv=ins.video_views||ins.video_play_actions||0; return `${vv} Video views`;
+            }
+            return `${ins.clicks||0} Clicks`;
+        }
         function updateCampaignsTable(campaigns) {
             const tbody = document.getElementById('campaigns-table');
             tbody.innerHTML = '';
@@ -359,6 +415,7 @@
                         <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${c.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${c.status}</span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${titleCase(c.objective)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${c.page_name||'-'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fmt(c.created_time)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fmt(c.start_time)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fmt(c.stop_time)}</td>
@@ -388,9 +445,22 @@
 
         async function viewInsights(campaignId, status) {
             try {
-                const res = await fetch(`/api/campaign-insights?campaign_id=${encodeURIComponent(campaignId)}&status=${encodeURIComponent(status||'')}`);
+                // Align insights with current date range selection
+                const preset = document.getElementById('date-preset')?.value || 'last_30d';
+                let q = `date_preset=${encodeURIComponent(preset)}`;
+                if (preset === 'custom') {
+                    const s = document.getElementById('since').value;
+                    const u = document.getElementById('until').value;
+                    if (s && u) q = `since=${encodeURIComponent(s)}&until=${encodeURIComponent(u)}`;
+                }
+                const res = await fetch(`/api/campaign-insights?campaign_id=${encodeURIComponent(campaignId)}&status=${encodeURIComponent(status||'')}&${q}`);
                 const data = await res.json();
-                if (data.error) { alert('Không lấy được insights'); return; }
+                if (data.error && (!Array.isArray(data.daily) || data.daily.length === 0)) {
+                    console.warn('Insights error', data.error);
+                    const note = document.getElementById('insights-note');
+                    if (note) { note.textContent = 'Không lấy được insights cho khoảng ngày này.'; note.classList.remove('hidden'); }
+                    return;
+                }
                 const panel = document.getElementById('insights-panel');
                 panel.classList.remove('hidden'); panel.style.display='block';
                 const vndFmt = new Intl.NumberFormat('vi-VN',{style:'currency',currency:'VND',maximumFractionDigits:0});
@@ -404,6 +474,26 @@
                 const ctx = document.getElementById('insightsChart').getContext('2d');
                 charts.insights && charts.insights.destroy();
                 charts.insights = new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Impressions',data:imp,borderColor:'#247ba0',backgroundColor:'rgba(36,123,160,0.15)',tension:.3,fill:true},{label:'Spend',data:spend,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,0.1)',tension:.3,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true},y1:{position:'right',beginAtZero:true}}}});
+                console.log('INSIGHTS', {labels, rows});
+                // Hiển thị thêm các số liệu tổng hợp
+                document.getElementById('insights-reach').textContent = (data.totals.reach||0).toLocaleString('vi-VN');
+                document.getElementById('insights-ctr').textContent = ((data.totals.ctr||0).toFixed(2))+'%';
+                document.getElementById('insights-frequency').textContent = (data.totals.frequency||0).toFixed(2);
+                document.getElementById('insights-link-clicks').textContent = (data.totals.inline_link_clicks||0).toLocaleString('vi-VN');
+                document.getElementById('insights-unique-link-clicks').textContent = (data.totals.unique_inline_link_clicks||0).toLocaleString('vi-VN');
+                document.getElementById('insights-engagement').textContent = (data.totals.post_engagement||0).toLocaleString('vi-VN');
+                document.getElementById('insights-photo-views').textContent = (data.totals.photo_view||0).toLocaleString('vi-VN');
+                document.getElementById('insights-video-views').textContent = (data.totals.video_views||0).toLocaleString('vi-VN');
+                const totalViews = (data.totals.impressions||0) + (data.totals.video_views||0);
+                document.getElementById('insights-total-views').textContent = totalViews.toLocaleString('vi-VN');
+
+                // Show fallback note if any
+                const note = document.getElementById('insights-note');
+                if (note) {
+                    if (data.note) { note.textContent = data.note; note.classList.remove('hidden'); }
+                    else { note.textContent=''; note.classList.add('hidden'); }
+                }
+
                 panel.scrollIntoView({behavior:'smooth',block:'start'});
             } catch (e) { console.error(e); }
         }
@@ -643,17 +733,20 @@
             function applyFilters(data){
                 const fs=document.getElementById('filter-status').value;
                 const fo=document.getElementById('filter-objective').value;
+                const fp=document.getElementById('filter-page').value;
                 let items=data.campaigns.slice();
                 if(fs!=='ALL') items=items.filter(x=>x.status===fs);
                 if(fo!=='ALL') items=items.filter(x=>x.objective===fo);
+                if(fp!=='ALL') items=items.filter(x=>(x.page_id||'')===fp);
                 updateCampaignsTable(items);
                 createCharts(items);
             }
             // populate objective options after load
             const oldLoad=window.loadAdsData;
-            window.loadAdsData=async ()=>{ await oldLoad(); if(!adsData||!adsData.campaigns) return; const sel=document.getElementById('filter-objective'); const set=[...new Set(adsData.campaigns.map(c=>c.objective))]; sel.innerHTML='<option value="ALL" selected>Tất cả</option>'+set.map(o=>`<option value="${o}">${o}</option>`).join(''); applyFilters(adsData); }
+            window.loadAdsData=async ()=>{ await oldLoad(); if(!adsData||!adsData.campaigns) return; const sel=document.getElementById('filter-objective'); const set=[...new Set(adsData.campaigns.map(c=>c.objective))]; sel.innerHTML='<option value="ALL" selected>Tất cả</option>'+set.map(o=>`<option value="${o}">${o}</option>`).join(''); const selp=document.getElementById('filter-page'); const pages=[...new Set(adsData.campaigns.map(c=>`${c.page_id||''}|${c.page_name||''}`))].filter(x=>x!=='|'); selp.innerHTML='<option value="ALL" selected>Tất cả</option>'+pages.map(p=>{ const [id,name]=p.split('|'); return `<option value="${id}">${name||id}</option>`; }).join(''); applyFilters(adsData); }
             document.getElementById('filter-status').onchange=()=>applyFilters(adsData);
             document.getElementById('filter-objective').onchange=()=>applyFilters(adsData);
+            document.getElementById('filter-page').onchange=()=>applyFilters(adsData);
             document.getElementById('btn-export-campaigns').onclick=()=>{ const rows=(adsData?.campaigns||[]).map(c=>({id:c.campaign_id,name:c.campaign_name,status:c.status,objective:c.objective,created:c.created_time,start:c.start_time,stop:c.stop_time})); const blob=new Blob([toCSV(rows)],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='campaigns.csv'; a.click(); URL.revokeObjectURL(url); };
             
             // AI Analysis button

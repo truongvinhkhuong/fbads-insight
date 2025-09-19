@@ -27,11 +27,51 @@ class FacebookAdsExtractor:
         self.skip_insights = (os.getenv('SKIP_INSIGHTS', 'true').lower() in ['1', 'true', 'yes'])
         self.account_ids = os.getenv('FACEBOOK_ACCOUNT_IDS', '').split(',')
         self.base_url = "https://graph.facebook.com/v23.0"
+        self._page_cache = {}
         
         if not self.access_token:
             raise ValueError("USER_TOKEN hoặc FACEBOOK_ACCESS_TOKEN không được cấu hình")
         if not self.account_ids or self.account_ids[0] == '':
             raise ValueError("FACEBOOK_ACCOUNT_IDS không được cấu hình")
+
+    def _infer_campaign_page(self, campaign_id: str) -> Dict[str, str]:
+        """Suy luận page_id/page_name từ creatives của ads trong campaign (best-effort)"""
+        try:
+            # Lấy 1-3 ads để giảm số request
+            ads_res = requests.get(
+                f"{self.base_url}/{campaign_id}/ads",
+                params={
+                    'access_token': self.access_token,
+                    'fields': 'id,adcreatives{object_story_id,object_id,instagram_actor_id}',
+                    'limit': 3
+                }
+            )
+            if ads_res.status_code != 200:
+                return {}
+            ads = ads_res.json().get('data', [])
+            page_id = None
+            for ad in ads:
+                creatives = (ad.get('adcreatives') or {}).get('data') or []
+                for cr in creatives:
+                    osid = cr.get('object_story_id') or ''  # dạng "<pageid>_<postid>"
+                    if '_' in osid:
+                        page_id = osid.split('_')[0]
+                        break
+                if page_id:
+                    break
+            if not page_id:
+                return {}
+            # Lấy page name (có cache)
+            if page_id in self._page_cache:
+                return {'page_id': page_id, 'page_name': self._page_cache[page_id]}
+            page_res = requests.get(f"{self.base_url}/{page_id}", params={'access_token': self.access_token, 'fields': 'name'})
+            if page_res.status_code == 200:
+                name = page_res.json().get('name') or ''
+                self._page_cache[page_id] = name
+                return {'page_id': page_id, 'page_name': name}
+            return {'page_id': page_id, 'page_name': ''}
+        except Exception:
+            return {}
     
     def test_connection(self) -> bool:
         """Kiểm tra kết nối đến Facebook API"""
@@ -105,7 +145,7 @@ class FacebookAdsExtractor:
             params = {
                 'access_token': self.access_token,
                 'level': 'campaign',
-                'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm',
+                'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency,actions,inline_link_clicks,inline_link_click_ctr,unique_inline_link_clicks,video_play_actions,video_3_sec_watched_actions,video_10_sec_watched_actions,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p95_watched_actions,video_avg_time_watched_actions',
                 'date_preset': 'custom',
                 'since': start_date,
                 'until': date.today().isoformat(),
@@ -154,6 +194,10 @@ class FacebookAdsExtractor:
                     'stop_time': campaign.get('stop_time', ''),
                     'insights': {}
                 }
+                # Gắn thông tin Page nếu suy luận được
+                page_info = self._infer_campaign_page(campaign['id'])
+                if page_info:
+                    campaign_data.update(page_info)
                 
                 # Lấy insights nếu không skip và chiến dịch đang hoạt động
                 if not self.skip_insights and campaign.get('status') == 'ACTIVE':

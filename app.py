@@ -18,7 +18,7 @@ from facebook_ads_extractor import FacebookAdsExtractor
 # Cấu hình logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
+ 
 # Load environment variables
 load_dotenv()
 
@@ -360,7 +360,8 @@ def api_campaign_insights():
         campaign_id = request.args.get('campaign_id', '').strip()
         since = request.args.get('since')
         until = request.args.get('until')
-        status = request.args.get('status', '').upper()
+        date_preset = request.args.get('date_preset', '').strip()
+        campaign_status = request.args.get('status', '').upper()
         if not campaign_id:
             return jsonify({'error': 'campaign_id is required'}), 400
         token = get_access_token()
@@ -374,10 +375,14 @@ def api_campaign_insights():
             return r.status_code, r.json()
 
         # Strategy 1: for ACTIVE, thử gần nhất; cho STOPPED, thử 30-90d
+        # Determine initial date preset
+        initial_preset = 'last_7d' if campaign_status == 'ACTIVE' else 'last_30d'
+        if date_preset:
+            initial_preset = date_preset
         params = {
             'access_token': token,
-            'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency',
-            'date_preset': 'last_7d' if status == 'ACTIVE' else 'last_30d',
+            'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency,actions,inline_link_clicks,inline_link_click_ctr,unique_inline_link_clicks',
+            'date_preset': initial_preset,
             'time_increment': 1
         }
         if since and until:
@@ -385,8 +390,8 @@ def api_campaign_insights():
             params['since'] = since
             params['until'] = until
 
-        status, data = fetch(params)
-        if status != 200:
+        status_code, data = fetch(params)
+        if status_code != 200:
             # Phát hiện token hết hạn (code 190)
             err = data.get('error', {})
             if err.get('code') == 190:
@@ -395,24 +400,31 @@ def api_campaign_insights():
             params_f = {'access_token': token, 'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency', 'date_preset': 'lifetime'}
             st2, d2 = fetch(params_f)
             rows2 = d2.get('data', []) if st2 == 200 else []
-            return jsonify({'error': err or {'message': 'Unknown error'}, 'totals': {}, 'daily': rows2})
+            if rows2:
+                return jsonify({'totals': {}, 'daily': rows2, 'note': 'Fallback to lifetime due to upstream error'})
+            return jsonify({'error': err or {'message': 'Unknown error'}, 'totals': {}, 'daily': []})
         rows = data.get('data', [])
 
-        # Strategy 2: if empty, broaden window
+        # Strategy 2: if empty, broaden/adjust window
         if not rows:
             params2 = params.copy()
-            params2['date_preset'] = 'last_14d' if status == 'ACTIVE' else 'last_90d'
-            status, data = fetch(params2)
-            if status == 200:
+            # For ACTIVE: last_7d -> last_30d
+            # For others: last_30d -> last_90d
+            if campaign_status == 'ACTIVE':
+                params2['date_preset'] = 'last_30d'
+            else:
+                params2['date_preset'] = 'last_90d'
+            status_code, data = fetch(params2)
+            if status_code == 200:
                 rows = data.get('data', [])
 
         # Strategy 3: if still empty, try yesterday/today for ACTIVE
-        if not rows and status == 'ACTIVE':
+        if not rows and campaign_status == 'ACTIVE':
             for preset in ['yesterday', 'today']:
                 params3a = params.copy()
                 params3a['date_preset'] = preset
-                status_code, data = fetch(params3a)
-                if status_code == 200:
+                sc_try, data = fetch(params3a)
+                if sc_try == 200:
                     rows = data.get('data', [])
                     if rows:
                         break
@@ -424,21 +436,73 @@ def api_campaign_insights():
                 'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency',
                 'date_preset': 'lifetime'
             }
-            status, data = fetch(params3)
-            if status == 200:
+            status_code, data = fetch(params3)
+            if status_code == 200:
                 rows = data.get('data', [])
-        # Tổng hợp nhanh
+        # Sắp xếp theo ngày để đồng bộ trục thời gian
+        def _row_date_key(r):
+            return (r.get('date_start') or r.get('date') or r.get('date_stop') or '')
+        try:
+            rows = sorted(rows, key=_row_date_key)
+        except Exception:
+            pass
+
+        # Tổng hợp nhanh + các hành động
         totals = {
             'impressions': 0,
             'clicks': 0,
             'spend': 0.0,
             'reach': 0,
+            'inline_link_clicks': 0,
+            'post_engagement': 0,
+            'photo_view': 0,
+            'video_views': 0,
+            'unique_inline_link_clicks': 0,
         }
+
+        def sum_video_actions(action_list):
+            if not isinstance(action_list, list):
+                return 0
+            total = 0
+            for a in action_list:
+                try:
+                    total += int(float(a.get('value', 0) or 0))
+                except Exception:
+                    continue
+            return total
+
         for r in rows:
             totals['impressions'] += int(float(r.get('impressions', 0) or 0))
             totals['clicks'] += int(float(r.get('clicks', 0) or 0))
             totals['spend'] += float(r.get('spend', 0) or 0)
             totals['reach'] += int(float(r.get('reach', 0) or 0))
+
+            # Inline link clicks
+            totals['inline_link_clicks'] += int(float(r.get('inline_link_clicks', 0) or 0))
+            totals['unique_inline_link_clicks'] += int(float(r.get('unique_inline_link_clicks', 0) or 0))
+
+            # Actions breakdown
+            for a in (r.get('actions') or []):
+                at = (a.get('action_type') or '').lower()
+                try:
+                    val = int(float(a.get('value', 0) or 0))
+                except Exception:
+                    val = 0
+                if at == 'post_engagement':
+                    totals['post_engagement'] += val
+                elif at == 'photo_view':
+                    totals['photo_view'] += val
+                elif at in ('link_click', 'landing_page_view'):
+                    totals['inline_link_clicks'] += val
+
+            # Video views (tổng hợp nhiều chỉ số liên quan)
+            totals['video_views'] += sum_video_actions(r.get('video_play_actions'))
+            totals['video_views'] += sum_video_actions(r.get('video_3_sec_watched_actions'))
+            totals['video_views'] += sum_video_actions(r.get('video_10_sec_watched_actions'))
+
+        # Tính CTR và tần suất (frequency) tổng quan
+        totals['ctr'] = (totals['clicks'] / max(totals['impressions'], 1)) * 100.0
+        totals['frequency'] = (totals['impressions'] / max(totals['reach'], 1)) if totals['reach'] > 0 else 0.0
 
         return jsonify({'totals': totals, 'daily': rows})
     except Exception as e:
@@ -465,7 +529,7 @@ def api_campaign_breakdown():
         }.get(kind, 'placement')
         params = {
             'access_token': token,
-            'fields': 'impressions,clicks,spend,ctr,cpc,cpm',
+            'fields': 'impressions,clicks,spend,ctr,cpc,cpm,reach,frequency,actions,inline_link_clicks,video_play_actions',
             'breakdowns': breakdowns,
             'date_preset': date_preset
         }
