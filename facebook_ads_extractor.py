@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Facebook Ads Data Extractor using PyAirbyte
-Trích xuất dữ liệu quảng cáo từ Facebook Marketing API
-"""
 
 import os
 import json
@@ -12,18 +8,14 @@ from typing import Dict, List, Any
 import requests
 from dotenv import load_dotenv
 
-# Cấu hình logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class FacebookAdsExtractor:
-    """Class để trích xuất dữ liệu từ Facebook Ads API"""
     
     def __init__(self):
         load_dotenv()
-        # Ưu tiên USER_TOKEN nếu có, sau đó fallback về FACEBOOK_ACCESS_TOKEN
         self.access_token = os.getenv('USER_TOKEN') or os.getenv('FACEBOOK_ACCESS_TOKEN')
-        # Cho phép bỏ qua việc lấy insights qua biến môi trường
         self.skip_insights = (os.getenv('SKIP_INSIGHTS', 'true').lower() in ['1', 'true', 'yes'])
         self.account_ids = os.getenv('FACEBOOK_ACCOUNT_IDS', '').split(',')
         self.base_url = "https://graph.facebook.com/v23.0"
@@ -35,9 +27,7 @@ class FacebookAdsExtractor:
             raise ValueError("FACEBOOK_ACCOUNT_IDS không được cấu hình")
 
     def _infer_campaign_page(self, campaign_id: str) -> Dict[str, str]:
-        """Suy luận page_id/page_name từ creatives của ads trong campaign (best-effort)"""
         try:
-            # Lấy 1-3 ads để giảm số request
             ads_res = requests.get(
                 f"{self.base_url}/{campaign_id}/ads",
                 params={
@@ -53,7 +43,7 @@ class FacebookAdsExtractor:
             for ad in ads:
                 creatives = (ad.get('adcreatives') or {}).get('data') or []
                 for cr in creatives:
-                    osid = cr.get('object_story_id') or ''  # dạng "<pageid>_<postid>"
+                    osid = cr.get('object_story_id') or ''
                     if '_' in osid:
                         page_id = osid.split('_')[0]
                         break
@@ -61,7 +51,6 @@ class FacebookAdsExtractor:
                     break
             if not page_id:
                 return {}
-            # Lấy page name (có cache)
             if page_id in self._page_cache:
                 return {'page_id': page_id, 'page_name': self._page_cache[page_id]}
             page_res = requests.get(f"{self.base_url}/{page_id}", params={'access_token': self.access_token, 'fields': 'name'})
@@ -74,7 +63,6 @@ class FacebookAdsExtractor:
             return {}
     
     def test_connection(self) -> bool:
-        """Kiểm tra kết nối đến Facebook API"""
         try:
             url = f"{self.base_url}/me/adaccounts"
             params = {
@@ -93,7 +81,6 @@ class FacebookAdsExtractor:
             return False
     
     def get_campaigns(self, account_id: str) -> List[Dict[str, Any]]:
-        """Lấy danh sách các chiến dịch quảng cáo"""
         try:
             url = f"{self.base_url}/{account_id}/campaigns"
             params = {
@@ -108,18 +95,15 @@ class FacebookAdsExtractor:
             data = response.json()
             campaigns = data.get('data', [])
             
-            # Kiểm tra nếu có lỗi trong response
             if 'error' in data:
                 logger.warning(f"Lỗi API khi lấy campaigns: {data['error']}")
                 return []
             
             logger.info(f"Lấy được {len(campaigns)} chiến dịch từ tài khoản {account_id}")
             
-            # Nếu không có campaigns, kiểm tra quyền truy cập
             if len(campaigns) == 0:
                 logger.info("Không tìm thấy chiến dịch nào. Có thể tài khoản chưa có chiến dịch hoặc thiếu quyền truy cập.")
                 
-                # Kiểm tra quyền ads_read
                 try:
                     perm_url = f"{self.base_url}/me/permissions"
                     perm_response = requests.get(perm_url, params={'access_token': self.access_token})
@@ -138,9 +122,7 @@ class FacebookAdsExtractor:
             return []
     
     def get_campaign_insights(self, account_id: str, campaign_id: str, start_date: str = "2023-01-01") -> Dict[str, Any]:
-        """Lấy thông tin insights của chiến dịch"""
         try:
-            # Gọi trực tiếp insights trên campaign để tránh lỗi tham số
             url = f"{self.base_url}/{campaign_id}/insights"
             params = {
                 'access_token': self.access_token,
@@ -165,7 +147,6 @@ class FacebookAdsExtractor:
             return {}
     
     def extract_all_data(self, start_date: str = "2023-01-01") -> Dict[str, Any]:
-        """Trích xuất tất cả dữ liệu quảng cáo"""
         all_data = {
             'extraction_date': datetime.now().isoformat(),
             'start_date': start_date,
@@ -179,7 +160,6 @@ class FacebookAdsExtractor:
                 
             logger.info(f"Đang xử lý tài khoản: {account_id}")
             
-            # Lấy danh sách chiến dịch
             campaigns = self.get_campaigns(account_id)
             
             for campaign in campaigns:
@@ -194,12 +174,10 @@ class FacebookAdsExtractor:
                     'stop_time': campaign.get('stop_time', ''),
                     'insights': {}
                 }
-                # Gắn thông tin Page nếu suy luận được
                 page_info = self._infer_campaign_page(campaign['id'])
                 if page_info:
                     campaign_data.update(page_info)
                 
-                # Lấy insights nếu không skip và chiến dịch đang hoạt động
                 if not self.skip_insights and campaign.get('status') == 'ACTIVE':
                     insights = self.get_campaign_insights(account_id, campaign['id'], start_date)
                     campaign_data['insights'] = insights
@@ -209,7 +187,6 @@ class FacebookAdsExtractor:
         return all_data
     
     def save_to_json(self, data: Dict[str, Any], filename: str = "ads_data.json") -> bool:
-        """Lưu dữ liệu vào file JSON"""
         try:
             with open(filename, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
@@ -222,7 +199,6 @@ class FacebookAdsExtractor:
             return False
     
     def generate_sample_data(self) -> Dict[str, Any]:
-        """Tạo dữ liệu mẫu để test dashboard"""
         sample_data = {
             'extraction_date': datetime.now().isoformat(),
             'start_date': '2023-01-01',
@@ -290,23 +266,18 @@ class FacebookAdsExtractor:
         return sample_data
 
 def main():
-    """Hàm chính để chạy trích xuất dữ liệu"""
     try:
-        # Khởi tạo extractor
         extractor = FacebookAdsExtractor()
         
-        # Kiểm tra kết nối
         if not extractor.test_connection():
             logger.warning("Không thể kết nối đến Facebook API. Tạo dữ liệu mẫu...")
             sample_data = extractor.generate_sample_data()
             extractor.save_to_json(sample_data, "ads_data.json")
             return
         
-        # Trích xuất dữ liệu thực
         logger.info("Bắt đầu trích xuất dữ liệu...")
         data = extractor.extract_all_data("2023-01-01")
         
-        # Kiểm tra nếu không có dữ liệu thực
         if not data.get('campaigns') or len(data['campaigns']) == 0:
             logger.warning("Không tìm thấy chiến dịch nào trong tài khoản quảng cáo.")
             logger.info("Có thể do:")
@@ -321,7 +292,6 @@ def main():
             else:
                 logger.error("Lỗi khi tạo dữ liệu mẫu!")
         else:
-            # Lưu dữ liệu thực
             if extractor.save_to_json(data, "ads_data.json"):
                 logger.info("Trích xuất dữ liệu hoàn tất thành công!")
             else:

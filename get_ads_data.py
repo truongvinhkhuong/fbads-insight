@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Lấy dữ liệu Ads (quảng cáo riêng lẻ) thay vì Campaigns
-"""
 
 import os
 import json
@@ -19,8 +16,6 @@ def get_ads_data():
     print(f"Access Token: {access_token[:20]}...")
     print(f"Account ID: {account_id}")
     
-    # Lấy danh sách Ads
-    print("\n=== LẤY DANH SÁCH ADS ===")
     try:
         url = f"{base_url}/{account_id}/ads"
         params = {
@@ -41,7 +36,7 @@ def get_ads_data():
         print(f"Tìm thấy {len(ads)} quảng cáo:")
         
         if ads:
-            for i, ad in enumerate(ads[:10]):  # Chỉ hiển thị 10 quảng cáo đầu
+            for i, ad in enumerate(ads[:10]):
                 print(f"\n{i+1}. {ad.get('name', 'N/A')} (ID: {ad.get('id')})")
                 print(f"   - Trạng thái: {ad.get('status')}")
                 print(f"   - Trạng thái hiệu quả: {ad.get('effective_status')}")
@@ -53,9 +48,7 @@ def get_ads_data():
             print("Không có quảng cáo nào")
             return
         
-        # Lấy insights cho các quảng cáo
-        print("\n=== LẤY INSIGHTS CHO ADS ===")
-        for i, ad in enumerate(ads[:5]):  # Chỉ lấy insights cho 5 quảng cáo đầu
+        for i, ad in enumerate(ads[:5]):
             ad_id = ad.get('id')
             ad_name = ad.get('name', 'N/A')
             
@@ -66,7 +59,7 @@ def get_ads_data():
                 params = {
                     'access_token': access_token,
                     'fields': 'impressions,clicks,spend,ctr,cpc,cpm,reach,frequency,actions',
-                    'date_preset': 'lifetime'  # Lấy dữ liệu từ khi tạo đến nay
+                    'date_preset': 'lifetime'
                 }
                 response = requests.get(url, params=params)
                 
@@ -76,7 +69,7 @@ def get_ads_data():
                     
                     if insights:
                         insight = insights[0]
-                        print(f"   ✅ Insights:")
+                        print(f"   Insights:")
                         print(f"      - Impressions: {insight.get('impressions', 'N/A')}")
                         print(f"      - Clicks: {insight.get('clicks', 'N/A')}")
                         print(f"      - Spend: {insight.get('spend', 'N/A')}")
@@ -85,15 +78,13 @@ def get_ads_data():
                         print(f"      - CPM: {insight.get('cpm', 'N/A')}")
                         print(f"      - Reach: {insight.get('reach', 'N/A')}")
                     else:
-                        print(f"   ❌ Không có insights")
+                        print(f"   Không có insights")
                 else:
-                    print(f"   ❌ Lỗi: {response.status_code} - {response.text}")
+                    print(f"   Lỗi: {response.status_code} - {response.text}")
                     
             except Exception as e:
-                print(f"   ❌ Lỗi: {e}")
+                print(f"   Lỗi: {e}")
         
-        # Tạo dữ liệu JSON tương tự như campaigns
-        print("\n=== TẠO DỮ LIỆU JSON ===")
         all_data = {
             'extraction_date': datetime.now().isoformat(),
             'start_date': '2023-01-01',
@@ -114,7 +105,6 @@ def get_ads_data():
                 'insights': {}
             }
             
-            # Lấy insights nếu có
             try:
                 url = f"{base_url}/{ad.get('id')}/insights"
                 params = {

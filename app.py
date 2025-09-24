@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Flask Backend cho Facebook Ads Dashboard và Chatbot
-Xử lý yêu cầu API OpenAI và phục vụ dữ liệu
-"""
 
 import os
 import json
@@ -15,11 +11,9 @@ from dotenv import load_dotenv
 import requests
 from facebook_ads_extractor import FacebookAdsExtractor
 
-# Cấu hình logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
  
-# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
@@ -30,20 +24,17 @@ def get_access_token() -> str:
     return token or ''
 
 class OpenAIChatbot:
-    """Class để xử lý tương tác với OpenAI API với caching"""
     
     def __init__(self):
         self.api_key = os.getenv('OPENAI_API_KEY')
         self.api_url = "https://api.openai.com/v1/chat/completions"
-        self.cache = {}  # Simple in-memory cache
-        self.cache_ttl = timedelta(hours=2)  # Cache TTL: 2 giờ
+        self.cache = {}
+        self.cache_ttl = timedelta(hours=2)
         
         if not self.api_key:
             logger.warning("OPENAI_API_KEY không được cấu hình")
     
     def _get_cache_key(self, data: Dict[str, Any]) -> str:
-        """Tạo cache key từ dữ liệu campaign"""
-        # Chỉ cache dựa trên campaign_id và summary metrics chính
         cache_data = {
             'campaign_id': data.get('campaign_id'),
             'total_impressions': data.get('summary_metrics', {}).get('total_impressions', 0),
@@ -54,12 +45,10 @@ class OpenAIChatbot:
         return hashlib.md5(json.dumps(cache_data, sort_keys=True).encode()).hexdigest()
     
     def _is_cache_valid(self, cache_entry: Dict[str, Any]) -> bool:
-        """Kiểm tra cache có còn hợp lệ không"""
         cache_time = datetime.fromisoformat(cache_entry['timestamp'])
         return datetime.now() - cache_time < self.cache_ttl
     
     def analyze_campaign_performance(self, campaign_data: Dict[str, Any]) -> Dict[str, str]:
-        """Phân tích hiệu suất campaign và đưa ra insights + recommendations với caching"""
         if not self.api_key:
             return {
                 'insights': 'API key chưa được cấu hình. Vui lòng kiểm tra cài đặt.',
@@ -67,7 +56,6 @@ class OpenAIChatbot:
                 'cached': False
             }
         
-        # Kiểm tra cache trước
         cache_key = self._get_cache_key(campaign_data)
         if cache_key in self.cache:
             cache_entry = self.cache[cache_key]
@@ -79,17 +67,62 @@ class OpenAIChatbot:
                     'cached': True
                 }
             else:
-                # Xóa cache hết hạn
                 del self.cache[cache_key]
         
         try:
-            # Chuẩn bị dữ liệu tối ưu cho AI (giảm token usage)
             optimized_data = self._optimize_data_for_ai(campaign_data)
             
             system_prompt = (
-                "Bạn là chuyên gia phân tích Facebook Ads với 10+ năm kinh nghiệm. "
-                "Phân tích dữ liệu campaign và đưa ra insights sâu sắc cùng các đề xuất hành động cụ thể. "
-                "Trả lời bằng tiếng Việt, ngắn gọn và thực tế. Tập trung vào các metrics quan trọng: CTR, CPC, CPM, trends."
+                "Bạn là một Chuyên gia Phân tích Dữ liệu Quảng cáo và Chuyên gia Tối ưu hóa Hiệu suất có 10 năm kinh nghiệm. Bạn có kiến thức chuyên sâu về nền tảng Meta Ads, các chỉ số cốt lõi, và các framework chẩn đoán vấn đề hiệu quả. Nhiệm vụ của bạn là biến dữ liệu thô của một chiến dịch quảng cáo thành các phát hiện quan trọng và các đề xuất hành động cụ thể.\n\n"
+                
+                "Phân tích toàn diện dữ liệu của một chiến dịch quảng cáo Meta Ads đã hoàn thành hoặc đang chạy, với các mục tiêu sau:\n"
+                "1. Chẩn đoán vấn đề: Xác định các vấn đề hiệu suất chính dựa trên các chỉ số cốt lõi.\n"
+                "2. Tìm kiếm phát hiện: Khám phá các xu hướng và mối quan hệ nhân quả trong dữ liệu.\n"
+                "3. Đề xuất hành động: Cung cấp các kế hoạch hành động cụ thể, có thể thực thi ngay lập tức để tối ưu hóa hiệu suất chiến dịch trong tương lai.\n\n"
+                
+                "Dữ liệu sẽ được cung cấp dưới dạng bảng, bao gồm các cột chỉ số và kích thước sau:\n"
+                "- Kích thước: Campaign Name, Ad Set Name, Ad Name.\n"
+                "- Chỉ số: Amount Spent, Impressions, Reach, Frequency, Link Clicks, Outbound Clicks, CTR (Link Click-Through Rate), CPC (Cost per Link Click), CPM, Conversions, Cost Per Conversion (CPA), Total Conversion Value, ROAS (Return on Ad Spend).\n"
+                "Ngoài ra, tôi sẽ cung cấp bối cảnh chiến dịch, bao gồm:\n"
+                "- Mục tiêu chính của chiến dịch: [Điền mục tiêu]\n"
+                "- Ngân sách chiến dịch: [Điền ngân sách]\n"
+                "- Đối tượng mục tiêu: [Điền mô tả đối tượng]\n"
+                "- Khoảng thời gian chạy: [Điền thời gian]\n\n"
+                
+                "Sử dụng các bước sau để phân tích:\n"
+                "1. **Phân tích Cấp Chiến dịch (Campaign Level):** Đánh giá hiệu suất tổng thể của chiến dịch dựa trên CPA và ROAS. So sánh các chỉ số này với mục tiêu ban đầu của chiến dịch.\n"
+                "2. **Phân tích Cấp Nhóm quảng cáo (Ad Set Level):** Chẩn đoán các vấn đề liên quan đến đối tượng và ngân sách. So sánh các chỉ số CPA và ROAS giữa các nhóm quảng cáo khác nhau. Xác định nhóm quảng cáo hoạt động tốt nhất và kém nhất. Phân tích chỉ số Frequency của từng nhóm quảng cáo.\n"
+                "3. **Phân tích Cấp Quảng cáo (Ad Level):** Đánh giá hiệu suất của nội dung quảng cáo (Creative). So sánh các chỉ số CTR và CPC giữa các quảng cáo trong cùng một nhóm quảng cáo. Xác định các quảng cáo hiệu quả nhất và kém hiệu quả nhất.\n"
+                "4. **Chẩn đoán Mối Quan Hệ:** Thiết lập mối quan hệ nhân quả giữa các chỉ số. Ví dụ:\n"
+                "    - Nếu CPA cao và CTR thấp, vấn đề nằm ở nội dung quảng cáo hoặc đối tượng mục tiêu.\n"
+                "    - Nếu CPA cao nhưng CTR cao, vấn đề có thể nằm ở trang đích hoặc tỷ lệ chuyển đổi.\n"
+                "    - Nếu ROAS thấp, phân tích xem đó là do CPA cao hay giá trị đơn hàng trung bình thấp.\n\n"
+                
+                "- **Vấn đề `CTR` thấp:** Khi chỉ số này thấp hơn mức trung bình của ngành hoặc thấp hơn kỳ vọng của bạn, đó là dấu hiệu của nội dung không hấp dẫn hoặc nhắm sai đối tượng.\n"
+                "- **Vấn đề `CPA` cao:** Khi chi phí để có một kết quả quá cao, đó là dấu hiệu của hiệu quả chuyển đổi kém hoặc chi phí đấu thầu cao.\n"
+                "- **Vấn đề `ROAS` thấp:** Khi lợi nhuận trên chi tiêu quảng cáo không đạt mục tiêu, đó là dấu hiệu của hiệu suất tài chính kém.\n\n"
+                
+                "Trình bày kết quả phân tích trong một báo cáo có cấu trúc rõ ràng, sử dụng các tiêu đề phụ và gạch đầu dòng.\n"
+                "**Phần 1: Tóm Tắt Phân Tích**\n"
+                "- Tóm tắt tổng thể về hiệu suất chiến dịch (tốt, trung bình, kém).\n"
+                "- Các chỉ số hiệu suất chính (CPA, ROAS, CTR) so với mục tiêu.\n\n"
+                
+                "**Phần 2: Phân Tích Chẩn Đoán Chi Tiết**\n"
+                "- Bảng Phân tích theo Cấp Nhóm quảng cáo:\n"
+                "    - Liệt kê các chỉ số chính (Amount Spent, Link Clicks, CTR, CPC, CPA, ROAS, Conversions) cho từng nhóm quảng cáo.\n"
+                "    - So sánh và xếp hạng các nhóm quảng cáo dựa trên ROAS và CPA.\n"
+                "- Bảng Phân tích theo Cấp Quảng cáo:\n"
+                "    - Liệt kê các chỉ số chính (CTR, CPC) cho từng quảng cáo.\n"
+                "    - Xác định quảng cáo chiến thắng (`winner`) và quảng cáo hoạt động kém (`loser`).\n\n"
+                
+                "**Phần 3: Các Phát Hiện và Đề Xuất Hành Động**\n"
+                "- **Đề xuất Hành động cho Nhóm quảng cáo:** Dựa trên các phát hiện ở cấp độ này, đưa ra các đề xuất cụ thể (ví dụ: tắt các nhóm quảng cáo hoạt động kém, tinh chỉnh đối tượng mục tiêu, thử nghiệm các nhóm đối tượng mới).\n"
+                "- **Đề xuất Hành động cho Quảng cáo:** Dựa trên các phát hiện ở cấp độ này, đưa ra các đề xuất cụ thể (ví dụ: tắt các quảng cáo hoạt động kém, A/B testing các biến thể creative mới, làm mới nội dung để chống `ad fatigue`).\n\n"
+                
+                "Tạo một kế hoạch hành động cụ thể, có thể thực thi. Ví dụ:\n"
+                "- `Creative Optimization`: Đề xuất A/B testing các yếu tố nào (tiêu đề, hình ảnh, video).\n"
+                "- `Audience Optimization`: Đề xuất thử nghiệm các tệp đối tượng mới (ví dụ: `lookalike audience` dựa trên khách hàng giá trị cao).\n"
+                "- `Bidding & Budget Strategy`: Đề xuất các thay đổi về chiến lược đấu thầu (`cost cap`, `ROAS goal`) hoặc phân bổ ngân sách.\n"
             )
             
             user_prompt = (
@@ -122,21 +155,17 @@ class OpenAIChatbot:
             result = response.json()
             answer = result['choices'][0]['message']['content']
             
-            # Log raw response để debug
             logger.info(f"OpenAI raw response length: {len(answer)} chars")
             logger.debug(f"OpenAI raw response: {answer[:500]}...")
             
-            # Parse JSON response
             try:
                 ai_response = json.loads(answer)
                 insights = ai_response.get('insights', 'Không có insights')
                 recommendations = ai_response.get('recommendations', 'Không có đề xuất')
                 
-                # Đảm bảo insights và recommendations là string
                 insights_str = str(insights) if insights else 'Không có insights'
                 recommendations_str = str(recommendations) if recommendations else 'Không có đề xuất'
                 
-                # Cache kết quả
                 self.cache[cache_key] = {
                     'insights': insights_str,
                     'recommendations': recommendations_str,
@@ -152,7 +181,6 @@ class OpenAIChatbot:
                 }
                 
             except json.JSONDecodeError:
-                # Fallback nếu không parse được JSON
                 logger.warning(f"Không thể parse JSON response từ OpenAI: {answer[:200]}...")
                 fallback_response = {
                     'insights': str(answer) if answer else 'Không thể phân tích dữ liệu',
@@ -160,7 +188,6 @@ class OpenAIChatbot:
                     'cached': False
                 }
                 
-                # Vẫn cache fallback response
                 self.cache[cache_key] = {
                     'insights': fallback_response['insights'],
                     'recommendations': fallback_response['recommendations'],
@@ -192,17 +219,14 @@ class OpenAIChatbot:
             }
     
     def _optimize_data_for_ai(self, campaign_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Tối ưu dữ liệu để giảm token usage"""
         summary = campaign_data.get('summary_metrics', {})
         daily_trends = campaign_data.get('daily_trends', [])
         placement_breakdown = campaign_data.get('placement_breakdown', [])
         
-        # Chỉ lấy top 3 placements để giảm token
         top_placements = sorted(placement_breakdown, 
                               key=lambda x: int(x.get('impressions', 0)), 
                               reverse=True)[:3]
         
-        # Tính toán một số metrics quan trọng
         optimized = {
             'campaign_id': campaign_data.get('campaign_id'),
             'metrics': {
@@ -213,14 +237,13 @@ class OpenAIChatbot:
                 'cpc': round(summary.get('avg_cpc', 0), 2),
                 'reach': summary.get('total_reach', 0)
             },
-            'recent_trend': daily_trends[-3:] if len(daily_trends) >= 3 else daily_trends,  # 3 ngày gần nhất
+            'recent_trend': daily_trends[-3:] if len(daily_trends) >= 3 else daily_trends,
             'top_placements': top_placements
         }
         
         return optimized
     
     def ask_question(self, question: str, context: Dict[str, Any]) -> str:
-        """Gửi câu hỏi đến OpenAI API với context dữ liệu quảng cáo (insights/daily/breakdown)"""
         if not self.api_key:
             return "Xin lỗi, API key chưa được cấu hình. Vui lòng kiểm tra cài đặt."
         
@@ -267,7 +290,6 @@ class OpenAIChatbot:
             return "Xin lỗi, có lỗi xảy ra khi xử lý yêu cầu."
 
 def load_ads_data() -> Dict[str, Any]:
-    """Tải dữ liệu quảng cáo từ file JSON"""
     try:
         with open('ads_data.json', 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -285,12 +307,10 @@ def load_ads_data() -> Dict[str, Any]:
 
 @app.route('/')
 def index():
-    """Trang chủ dashboard"""
     return render_template('index.html')
 
 @app.route('/api/ads-data')
 def get_ads_data():
-    """API endpoint để lấy dữ liệu quảng cáo"""
     try:
         data = load_ads_data()
         return jsonify(data)
@@ -300,7 +320,6 @@ def get_ads_data():
 
 @app.route('/api/ask', methods=['POST'])
 def ask_question():
-    """API endpoint để xử lý câu hỏi từ chatbot"""
     try:
         data = request.get_json()
         question = data.get('question', '').strip()
@@ -309,16 +328,13 @@ def ask_question():
         if not question:
             return jsonify({'error': 'Câu hỏi không được để trống'}), 400
         
-        # Ghép thêm metadata chung từ file
         global_data = load_ads_data()
         if isinstance(context, dict):
             context.setdefault('extraction_date', global_data.get('extraction_date'))
             context.setdefault('campaigns_count', len(global_data.get('campaigns', [])))
         
-        # Khởi tạo chatbot
         chatbot = OpenAIChatbot()
         
-        # Gửi câu hỏi
         answer = chatbot.ask_question(question, context)
         
         return jsonify({
@@ -333,7 +349,6 @@ def ask_question():
 
 @app.route('/api/health')
 def health_check():
-    """Health check endpoint"""
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
@@ -342,7 +357,6 @@ def health_check():
 
 @app.route('/api/refresh', methods=['POST'])
 def refresh_data():
-    """Chạy lại trích xuất dữ liệu và cập nhật ads_data.json"""
     try:
         start_date = request.json.get('start_date') if request.is_json else None
         extractor = FacebookAdsExtractor()
@@ -355,7 +369,6 @@ def refresh_data():
 
 @app.route('/api/campaign-insights')
 def api_campaign_insights():
-    """Lấy insights theo campaign (on-demand)"""
     try:
         campaign_id = request.args.get('campaign_id', '').strip()
         since = request.args.get('since')
@@ -374,8 +387,6 @@ def api_campaign_insights():
             r = requests.get(url, params=params, timeout=30)
             return r.status_code, r.json()
 
-        # Strategy 1: for ACTIVE, thử gần nhất; cho STOPPED, thử 30-90d
-        # Determine initial date preset
         initial_preset = 'last_7d' if campaign_status == 'ACTIVE' else 'last_30d'
         if date_preset:
             initial_preset = date_preset
@@ -392,11 +403,9 @@ def api_campaign_insights():
 
         status_code, data = fetch(params)
         if status_code != 200:
-            # Phát hiện token hết hạn (code 190)
             err = data.get('error', {})
             if err.get('code') == 190:
                 return jsonify({'error': err, 'token_expired': True, 'totals': {}, 'daily': []})
-            # Trả về 200 để UI không fail, đồng thời thử fallback lifetime
             params_f = {'access_token': token, 'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency', 'date_preset': 'lifetime'}
             st2, d2 = fetch(params_f)
             rows2 = d2.get('data', []) if st2 == 200 else []
@@ -405,11 +414,8 @@ def api_campaign_insights():
             return jsonify({'error': err or {'message': 'Unknown error'}, 'totals': {}, 'daily': []})
         rows = data.get('data', [])
 
-        # Strategy 2: if empty, broaden/adjust window
         if not rows:
             params2 = params.copy()
-            # For ACTIVE: last_7d -> last_30d
-            # For others: last_30d -> last_90d
             if campaign_status == 'ACTIVE':
                 params2['date_preset'] = 'last_30d'
             else:
@@ -418,7 +424,6 @@ def api_campaign_insights():
             if status_code == 200:
                 rows = data.get('data', [])
 
-        # Strategy 3: if still empty, try yesterday/today for ACTIVE
         if not rows and campaign_status == 'ACTIVE':
             for preset in ['yesterday', 'today']:
                 params3a = params.copy()
@@ -429,7 +434,6 @@ def api_campaign_insights():
                     if rows:
                         break
 
-        # Strategy 4: if still empty, try lifetime without time_increment
         if not rows:
             params3 = {
                 'access_token': token,
@@ -439,7 +443,6 @@ def api_campaign_insights():
             status_code, data = fetch(params3)
             if status_code == 200:
                 rows = data.get('data', [])
-        # Sắp xếp theo ngày để đồng bộ trục thời gian
         def _row_date_key(r):
             return (r.get('date_start') or r.get('date') or r.get('date_stop') or '')
         try:
@@ -447,7 +450,6 @@ def api_campaign_insights():
         except Exception:
             pass
 
-        # Tổng hợp nhanh + các hành động
         totals = {
             'impressions': 0,
             'clicks': 0,
@@ -477,11 +479,9 @@ def api_campaign_insights():
             totals['spend'] += float(r.get('spend', 0) or 0)
             totals['reach'] += int(float(r.get('reach', 0) or 0))
 
-            # Inline link clicks
             totals['inline_link_clicks'] += int(float(r.get('inline_link_clicks', 0) or 0))
             totals['unique_inline_link_clicks'] += int(float(r.get('unique_inline_link_clicks', 0) or 0))
 
-            # Actions breakdown
             for a in (r.get('actions') or []):
                 at = (a.get('action_type') or '').lower()
                 try:
@@ -495,12 +495,10 @@ def api_campaign_insights():
                 elif at in ('link_click', 'landing_page_view'):
                     totals['inline_link_clicks'] += val
 
-            # Video views (tổng hợp nhiều chỉ số liên quan)
             totals['video_views'] += sum_video_actions(r.get('video_play_actions'))
             totals['video_views'] += sum_video_actions(r.get('video_3_sec_watched_actions'))
             totals['video_views'] += sum_video_actions(r.get('video_10_sec_watched_actions'))
 
-        # Tính CTR và tần suất (frequency) tổng quan
         totals['ctr'] = (totals['clicks'] / max(totals['impressions'], 1)) * 100.0
         totals['frequency'] = (totals['impressions'] / max(totals['reach'], 1)) if totals['reach'] > 0 else 0.0
 
@@ -511,10 +509,9 @@ def api_campaign_insights():
 
 @app.route('/api/campaign-breakdown')
 def api_campaign_breakdown():
-    """Insights breakdown theo placement/age-gender/country"""
     try:
         campaign_id = request.args.get('campaign_id', '').strip()
-        kind = request.args.get('kind', 'placement')  # placement | age_gender | country
+        kind = request.args.get('kind', 'placement')
         date_preset = request.args.get('date_preset', 'last_30d')
         since = request.args.get('since')
         until = request.args.get('until')
@@ -543,7 +540,6 @@ def api_campaign_breakdown():
         if res.status_code == 200:
             rows = data.get('data', [])
         else:
-            # Nếu custom khoảng ngày gây lỗi, thử last_30d
             if since and until:
                 p2 = params.copy()
                 p2.pop('since', None); p2.pop('until', None)
@@ -553,7 +549,6 @@ def api_campaign_breakdown():
                     rows = res_try.json().get('data', [])
                     data = res_try.json()
                     res = res_try
-            # Fallback cho placement: thử publisher_platform + platform_position
             if not rows and kind == 'placement':
                 fb_params = (p2 if (since and until) else params).copy()
                 fb_params['breakdowns'] = 'publisher_platform,platform_position'
@@ -580,7 +575,6 @@ def api_campaign_breakdown():
 
 @app.route('/api/campaign-ads')
 def api_campaign_ads():
-    """Danh sách ads + insights cơ bản theo campaign"""
     try:
         campaign_id = request.args.get('campaign_id', '').strip()
         date_preset = request.args.get('date_preset', 'last_30d')
@@ -589,7 +583,6 @@ def api_campaign_ads():
         token = get_access_token()
         base_url = 'https://graph.facebook.com/v23.0'
 
-        # list ads under campaign
         ads_res = requests.get(f"{base_url}/{campaign_id}/ads", params={'access_token': token, 'fields': 'id,name,status,created_time', 'limit': 50}, timeout=30)
         ads_data = ads_res.json()
         if ads_res.status_code != 200:
@@ -599,7 +592,6 @@ def api_campaign_ads():
             return jsonify({'error': err or {'message': 'Unknown error'}, 'items': []})
         ads = ads_data.get('data', [])
 
-        # fetch insights per ad (lightweight)
         result = []
         for ad in ads[:20]:
             ins_params = {
@@ -618,7 +610,6 @@ def api_campaign_ads():
 
 @app.route('/api/campaign-ai-insights', methods=['POST'])
 def api_campaign_ai_insights():
-    """Phân tích AI cho campaign insights và đưa ra recommendations"""
     try:
         data = request.get_json()
         campaign_id = data.get('campaign_id', '').strip()
@@ -626,9 +617,7 @@ def api_campaign_ai_insights():
         if not campaign_id:
             return jsonify({'error': 'campaign_id is required'}), 400
         
-        # Lấy dữ liệu campaign tổng hợp
         try:
-            # Sử dụng internal call thay vì HTTP request để tối ưu
             from flask import current_app
             with current_app.test_request_context(f'/api/campaign-insights?campaign_id={campaign_id}&status=ACTIVE'):
                 insights_response_data = api_campaign_insights()
@@ -644,7 +633,6 @@ def api_campaign_ai_insights():
             logger.error(f"Lỗi khi lấy insights data: {e}")
             return jsonify({'error': 'Không thể lấy dữ liệu insights'}), 500
         
-        # Lấy breakdown data cho context thêm
         try:
             with current_app.test_request_context(f'/api/campaign-breakdown?campaign_id={campaign_id}&kind=placement&date_preset=last_30d'):
                 breakdown_response_data = api_campaign_breakdown()
@@ -660,7 +648,6 @@ def api_campaign_ai_insights():
             logger.error(f"Lỗi khi lấy breakdown data: {e}")
             breakdown_data = {'rows': []}
         
-        # Chuẩn bị dữ liệu cho AI analysis
         campaign_analysis_data = {
             'campaign_id': campaign_id,
             'summary_metrics': {
@@ -671,11 +658,10 @@ def api_campaign_ai_insights():
                 'avg_ctr': (insights_data.get('totals', {}).get('clicks', 0) / max(insights_data.get('totals', {}).get('impressions', 1), 1)) * 100,
                 'avg_cpc': insights_data.get('totals', {}).get('spend', 0) / max(insights_data.get('totals', {}).get('clicks', 1), 1)
             },
-            'daily_trends': insights_data.get('daily', [])[-7:],  # 7 ngày gần nhất
-            'placement_breakdown': breakdown_data.get('rows', [])[:10]  # Top 10 placements
+            'daily_trends': insights_data.get('daily', [])[-7:],
+            'placement_breakdown': breakdown_data.get('rows', [])[:10]
         }
         
-        # Gọi AI analysis
         try:
             chatbot = OpenAIChatbot()
             ai_analysis = chatbot.analyze_campaign_performance(campaign_analysis_data)

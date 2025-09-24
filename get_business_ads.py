@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Thử lấy dữ liệu quảng cáo từ Business Manager
-"""
 
 import os
 import json
@@ -128,7 +125,7 @@ def get_business_ads():
                 'access_token': access_token,
                 'fields': 'id,name,status,objective,created_time,start_time,stop_time',
                 'limit': 100,
-                'effective_status': 'ACTIVE,PAUSED,ARCHIVED'  # Thêm tham số này
+                'effective_status': 'ACTIVE,PAUSED,ARCHIVED'
             }
             response = requests.get(url, params=params)
             
@@ -151,7 +148,7 @@ def get_business_ads():
                 'access_token': access_token,
                 'fields': 'id,name,status,created_time,updated_time',
                 'limit': 100,
-                'effective_status': 'ACTIVE,PAUSED,ARCHIVED'  # Thêm tham số này
+                'effective_status': 'ACTIVE,PAUSED,ARCHIVED'
             }
             response = requests.get(url, params=params)
             

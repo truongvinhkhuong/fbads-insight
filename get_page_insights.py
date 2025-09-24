@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Lấy insights từ trang Facebook với Page Access Token
-"""
 
 import os
 import json
@@ -17,10 +14,7 @@ def get_page_insights():
     
     print(f"Access Token: {access_token[:20]}...")
     
-    # Lấy insights của trang
-    print("\n=== LẤY INSIGHTS CỦA TRANG ===")
     try:
-        # Lấy insights trong 30 ngày qua
         end_date = date.today()
         start_date = end_date - timedelta(days=30)
         
@@ -55,11 +49,9 @@ def get_page_insights():
                 print(f"\n- {metric_name}:")
                 print(f"  {len(values)} ngày dữ liệu")
                 
-                # Tính tổng
                 total = sum(value.get('value', 0) for value in values)
                 print(f"  Tổng: {total:,}")
                 
-                # Hiển thị 5 ngày gần nhất
                 print(f"  5 ngày gần nhất:")
                 for value in values[-5:]:
                     print(f"    {value.get('end_time', 'N/A')}: {value.get('value', 'N/A'):,}")
@@ -69,21 +61,17 @@ def get_page_insights():
                     'daily_data': values
                 }
             
-            # Lưu dữ liệu
             with open('ads_data.json', 'w', encoding='utf-8') as f:
                 json.dump(all_data, f, ensure_ascii=False, indent=2)
             
-            print(f"\n✅ Đã lưu insights vào ads_data.json")
+            print(f"\nĐã lưu insights vào ads_data.json")
             
         else:
             print(f"Lỗi: {response.status_code} - {response.text}")
     except Exception as e:
         print(f"Lỗi: {e}")
     
-    # Lấy insights của posts
-    print("\n=== LẤY INSIGHTS CỦA POSTS ===")
     try:
-        # Lấy posts gần đây
         url = f"{base_url}/me/posts"
         params = {
             'access_token': access_token,

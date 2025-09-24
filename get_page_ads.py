@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-"""
-Lấy dữ liệu quảng cáo từ trang Facebook (Page) thay vì Ad Account
-"""
 
 import os
 import json
@@ -55,15 +52,15 @@ def get_page_ads():
                     if response.status_code == 200:
                         data = response.json()
                         posts = data.get('data', [])
-                        print(f"     ✅ {len(posts)} posts có thể quảng cáo")
+                        print(f"     {len(posts)} posts có thể quảng cáo")
                         
                         for post in posts[:5]:
                             print(f"       - {post.get('id')} - {post.get('created_time')}")
                             print(f"         Message: {post.get('message', 'N/A')[:100]}...")
                     else:
-                        print(f"     ❌ Lỗi posts: {response.status_code} - {response.text}")
+                        print(f"     Lỗi posts: {response.status_code} - {response.text}")
                 except Exception as e:
-                    print(f"     ❌ Lỗi posts: {e}")
+                    print(f"     Lỗi posts: {e}")
                 
                 # Thử lấy insights của trang
                 try:
@@ -80,14 +77,14 @@ def get_page_ads():
                     if response.status_code == 200:
                         data = response.json()
                         insights = data.get('data', [])
-                        print(f"     ✅ {len(insights)} insights")
+                        print(f"     {len(insights)} insights")
                         
                         for insight in insights[:3]:
                             print(f"       - {insight.get('name')}: {insight.get('values', [])}")
                     else:
-                        print(f"     ❌ Lỗi insights: {response.status_code} - {response.text}")
+                        print(f"     Lỗi insights: {response.status_code} - {response.text}")
                 except Exception as e:
-                    print(f"     ❌ Lỗi insights: {e}")
+                    print(f"     Lỗi insights: {e}")
                 
                 # Thử lấy posts của trang
                 try:
@@ -102,15 +99,15 @@ def get_page_ads():
                     if response.status_code == 200:
                         data = response.json()
                         posts = data.get('data', [])
-                        print(f"     ✅ {len(posts)} posts")
+                        print(f"     {len(posts)} posts")
                         
                         for post in posts[:5]:
                             print(f"       - {post.get('id')} - {post.get('created_time')}")
                             print(f"         Message: {post.get('message', 'N/A')[:100]}...")
                     else:
-                        print(f"     ❌ Lỗi posts: {response.status_code} - {response.text}")
+                        print(f"     Lỗi posts: {response.status_code} - {response.text}")
                 except Exception as e:
-                    print(f"     ❌ Lỗi posts: {e}")
+                    print(f"     Lỗi posts: {e}")
         else:
             print(f"Lỗi: {response.status_code} - {response.text}")
     except Exception as e:
