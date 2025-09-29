@@ -4,12 +4,14 @@ import os
 import json
 import logging
 import hashlib
+import time
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
 import requests
 from facebook_ads_extractor import FacebookAdsExtractor
+from budget_cache import budget_cache
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -401,6 +403,89 @@ def refresh_data():
         logger.error(f"Lỗi refresh: {e}")
         return jsonify({'ok': False, 'error': str(e)}), 500
 
+@app.route('/api/refresh-budgets')
+def api_refresh_budgets():
+    """Refresh budget cache for all campaigns"""
+    try:
+        token = os.getenv('FACEBOOK_ACCESS_TOKEN')
+        if not token:
+            return jsonify({'error': 'Facebook access token not found'}), 500
+        
+        # Load campaigns data
+        ads_data = load_ads_data()
+        campaigns = ads_data.get('campaigns', [])
+        
+        if not campaigns:
+            return jsonify({'error': 'No campaigns found'}), 404
+        
+        base_url = 'https://graph.facebook.com/v23.0'
+        updated_count = 0
+        failed_count = 0
+        
+        # Process campaigns in small batches to avoid rate limiting
+        batch_size = 3
+        for i in range(0, min(len(campaigns), 10), batch_size):  # Limit to 10 campaigns
+            batch = campaigns[i:i+batch_size]
+            
+            for campaign in batch:
+                campaign_id = campaign.get('campaign_id')
+                if not campaign_id:
+                    continue
+                
+                try:
+                    # Check if we already have valid cache
+                    cached_budget = budget_cache.get_campaign_budget(campaign_id)
+                    if cached_budget:
+                        continue  # Skip if already cached
+                    
+                    # Fetch budget from Facebook API
+                    url = f"{base_url}/{campaign_id}"
+                    params = {
+                        'access_token': token,
+                        'fields': 'daily_budget,lifetime_budget,budget_remaining'
+                    }
+                    
+                    response = requests.get(url, params=params, timeout=10)
+                    if response.status_code == 200:
+                        budget_info = response.json()
+                        budget_data = {
+                            'daily_budget': float(budget_info.get('daily_budget', 0) or 0),
+                            'lifetime_budget': float(budget_info.get('lifetime_budget', 0) or 0),
+                            'budget_remaining': float(budget_info.get('budget_remaining', 0) or 0)
+                        }
+                        
+                        # Cache the budget data
+                        budget_cache.set_campaign_budget(campaign_id, budget_data)
+                        updated_count += 1
+                        
+                        logger.info(f"Updated budget cache for campaign {campaign_id}")
+                    else:
+                        logger.warning(f"Failed to get budget for campaign {campaign_id}: {response.status_code}")
+                        failed_count += 1
+                    
+                    # Small delay to avoid rate limiting
+                    time.sleep(1)
+                    
+                except Exception as e:
+                    logger.error(f"Error fetching budget for campaign {campaign_id}: {e}")
+                    failed_count += 1
+            
+            # Longer delay between batches
+            if i + batch_size < len(campaigns):
+                time.sleep(3)
+        
+        return jsonify({
+            'success': True,
+            'updated_count': updated_count,
+            'failed_count': failed_count,
+            'cache_valid': budget_cache.is_cache_available(),
+            'message': f'Updated budget cache for {updated_count} campaigns'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in /api/refresh-budgets: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/campaign-insights')
 def api_campaign_insights():
     try:
@@ -683,13 +768,19 @@ def api_daily_tracking():
                 continue
                 
             try:
-                # Skip budget requests to avoid rate limiting
-                # Budget data will be 0 for now until we implement caching
-                budget_data = {
-                    'daily_budget': 0.0,
-                    'lifetime_budget': 0.0,
-                    'budget_remaining': 0.0
-                }
+                # Get budget data from cache
+                cached_budget = budget_cache.get_campaign_budget(campaign_id)
+                if cached_budget:
+                    budget_data = cached_budget
+                    logger.debug(f"Using cached budget for campaign {campaign_id}")
+                else:
+                    # Fallback to 0 if no cache available
+                    budget_data = {
+                        'daily_budget': 0.0,
+                        'lifetime_budget': 0.0,
+                        'budget_remaining': 0.0
+                    }
+                    logger.debug(f"No budget cache for campaign {campaign_id}")
                 
                 # Get insights data
                 url = f"{base_url}/{campaign_id}/insights"
