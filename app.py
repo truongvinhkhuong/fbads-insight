@@ -8,6 +8,7 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from flask import Flask, request, jsonify, render_template
+
 from dotenv import load_dotenv
 import requests
 from facebook_ads_extractor import FacebookAdsExtractor
@@ -515,7 +516,7 @@ def api_campaign_insights():
             initial_preset = date_preset
         params = {
             'access_token': token,
-            'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency,actions,inline_link_clicks,inline_link_click_ctr,unique_inline_link_clicks',
+            'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency,actions,conversion_values,inline_link_clicks,inline_link_click_ctr,unique_inline_link_clicks',
             'date_preset': initial_preset,
             'time_increment': 1
         }
@@ -585,6 +586,8 @@ def api_campaign_insights():
             'unique_inline_link_clicks': 0,
             # Custom aggregated actions for funnel
             'messaging_starts': 0,
+            'messaging_contacts': 0,
+            'messaging_new_contacts': 0,
             'purchases': 0,
         }
 
@@ -621,11 +624,39 @@ def api_campaign_insights():
                 elif at in ('link_click', 'landing_page_view'):
                     totals['inline_link_clicks'] += val
                 # Messaging conversations/new connections
-                elif 'messaging' in at and ('conversation' in at or 'new_messaging_connection' in at or 'first_reply' in at):
+                elif ('messaging' in at and ('conversation' in at or 'new_messaging_connection' in at or 'first_reply' in at)) or \
+                     at.startswith('onsite_conversion.messaging') or \
+                     at in ['messaging_conversation_started', 'messaging_first_reply', 'onsite_conversion.messaging_conversation_started', 'onsite_conversion.messaging_first_reply']:
+                    # Count total contacts
+                    totals['messaging_contacts'] += val
+                    # Count new contacts for start-type events
+                    if ('conversation' in at or 'new_messaging_connection' in at) or \
+                       at in ['messaging_conversation_started', 'onsite_conversion.messaging_conversation_started']:
+                        totals['messaging_new_contacts'] += val
+                    # Backward compatible counter
                     totals['messaging_starts'] += val
                 # Purchases (cover multiple action type variants)
                 elif at == 'purchase' or 'purchase' in at:
                     totals['purchases'] += val
+
+            # Process conversion_values for messaging conversions
+            for cv in (r.get('conversion_values') or []):
+                cv_type = (cv.get('action_type') or '').lower()
+                try:
+                    cv_val = float(cv.get('value', 0) or 0)
+                except Exception:
+                    cv_val = 0
+                # Handle messaging conversion values
+                if (cv_type.startswith('onsite_conversion.messaging') or 
+                    cv_type in ['messaging_conversation_started', 'messaging_first_reply', 'onsite_conversion.messaging_conversation_started', 'onsite_conversion.messaging_first_reply'] or
+                    ('messaging' in cv_type and 'conversion' in cv_type)):
+                    # Count total contacts
+                    totals['messaging_contacts'] += int(cv_val)
+                    # Count new contacts for start-type events
+                    if ('conversation' in cv_type) or \
+                       cv_type in ['messaging_conversation_started', 'onsite_conversion.messaging_conversation_started']:
+                        totals['messaging_new_contacts'] += int(cv_val)
+                    totals['messaging_starts'] += int(cv_val)
 
             totals['video_views'] += sum_video_actions(r.get('video_play_actions'))
             totals['video_views'] += sum_video_actions(r.get('video_3_sec_watched_actions'))
@@ -703,6 +734,84 @@ def api_campaign_breakdown():
         return jsonify({'rows': rows})
     except Exception as e:
         logger.error(f"Lỗi /api/campaign-breakdown: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/daily-breakdowns')
+def api_daily_breakdowns():
+    try:
+        date_preset = request.args.get('date_preset', 'last_30d').strip()
+        token = get_access_token()
+        if not token:
+            return jsonify({'error': 'Missing access token'}), 500
+
+        ads_data = load_ads_data()
+        if ads_data.get('error'):
+            return jsonify({'error': ads_data['error']}), 500
+        campaigns = ads_data.get('campaigns', [])
+        base_url = 'https://graph.facebook.com/v23.0'
+
+        agg = { 'gender': {}, 'age': {}, 'country': {} }
+
+        def add_row(bucket, key, row):
+            g = agg[bucket].setdefault(key or 'unknown', {'impressions':0,'clicks':0,'ctr':0.0,'new_messages':0})
+            g['impressions'] += int(float(row.get('impressions',0) or 0))
+            g['clicks'] += int(float(row.get('clicks',0) or 0))
+            newm = 0
+            for a in (row.get('actions') or []):
+                at=(a.get('action_type') or '').lower()
+                try:
+                    val=int(float(a.get('value',0) or 0))
+                except Exception:
+                    val=0
+                if (at in ['messaging_conversation_started','onsite_conversion.messaging_conversation_started','new_messaging_connection'] or 'conversation' in at):
+                    newm += val
+            g['new_messages'] += newm
+
+        # Prefer querying at Ad Account level for reliable breakdowns
+        account_id = None
+        for c in campaigns:
+            if c.get('account_id'):
+                account_id = c['account_id']
+                break
+        # Fallback: try from env if not found
+        if not account_id:
+            account_id = os.getenv('FB_AD_ACCOUNT_ID')
+
+        if not account_id:
+            return jsonify({'error': 'Không xác định được ad account id để lấy breakdowns'}), 500
+
+        for kind, breakdowns in [('gender','gender'),('age','age'),('region','region')]:
+            params={
+                'access_token': token,
+                'fields':'impressions,clicks,actions',
+                'breakdowns': breakdowns,
+                'date_preset': date_preset
+            }
+            res = requests.get(f"{base_url}/{account_id}/insights", params=params, timeout=25)
+            if res.status_code!=200:
+                for fb in ['last_30d','last_90d','lifetime']:
+                    params_fb=params.copy(); params_fb['date_preset']=fb
+                    res = requests.get(f"{base_url}/{account_id}/insights", params=params_fb, timeout=25)
+                    if res.status_code==200:
+                        break
+            if res.status_code!=200:
+                continue
+            for r in res.json().get('data', []):
+                if kind=='gender':
+                    add_row('gender', r.get('gender'), r)
+                elif kind=='age':
+                    add_row('age', r.get('age'), r)
+                else:
+                    add_row('country', (r.get('region') or r.get('country')), r)
+
+        # finalize CTR
+        for bucket in agg.values():
+            for _,v in bucket.items():
+                v['ctr'] = (v['clicks']/max(v['impressions'],1))*100.0
+
+        return jsonify({'gender':agg['gender'],'age':agg['age'],'country':agg['country']})
+    except Exception as e:
+        logger.error(f"Lỗi /api/daily-breakdowns: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/campaign-ads')
@@ -796,7 +905,7 @@ def api_daily_tracking():
                 # Request fields including actions for messaging, conversions, and ROAS
                 params = {
                     'access_token': token,
-                    'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency,actions,inline_link_clicks,inline_link_click_ctr,unique_inline_link_clicks',
+                    'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency,actions,conversion_values,inline_link_clicks,inline_link_click_ctr,unique_inline_link_clicks',
                     'date_preset': date_preset,
                     'time_increment': 1
                 }
@@ -933,8 +1042,17 @@ def api_daily_tracking():
                 # Messaging actions - check first to avoid conflicts with conversion actions
                 elif (action_type.startswith('onsite_conversion.messaging') or 
                       action_type == 'messaging_starts' or 
+                      action_type == 'onsite_conversion.messaging_conversation_started' or
+                      action_type == 'onsite_conversion.messaging_first_reply' or
+                      action_type == 'messaging_conversation_started' or
+                      action_type == 'messaging_first_reply' or
+                      action_type == 'new_messaging_connection' or
                       ('messaging' in action_type and 'conversion' in action_type)):
                     group['messaging_starts'] += value
+                    group['messaging_contacts'] = group.get('messaging_contacts', 0) + value
+                    if (action_type in ['messaging_conversation_started', 'onsite_conversion.messaging_conversation_started', 'new_messaging_connection'] or 
+                        ('conversation' in action_type)):
+                        group['messaging_new_contacts'] = group.get('messaging_new_contacts', 0) + value
                 # Purchase/Conversion actions - only handle actual purchase actions
                 elif (action_type == 'purchase' or 
                       action_type == 'offsite_conversion' or 
@@ -950,6 +1068,23 @@ def api_daily_tracking():
                 # Link clicks
                 elif action_type == 'link_click' or action_type == 'landing_page_view':
                     group['inline_link_clicks'] += value
+            
+            # Process conversion_values for messaging conversions
+            for cv in (row.get('conversion_values') or []):
+                cv_type = (cv.get('action_type') or '').lower()
+                try:
+                    cv_val = float(cv.get('value', 0) or 0)
+                except Exception:
+                    cv_val = 0
+                # Handle messaging conversion values
+                if (cv_type.startswith('onsite_conversion.messaging') or 
+                    cv_type in ['messaging_conversation_started', 'messaging_first_reply', 'onsite_conversion.messaging_conversation_started', 'onsite_conversion.messaging_first_reply', 'new_messaging_connection'] or
+                    ('messaging' in cv_type and 'conversion' in cv_type)):
+                    group['messaging_starts'] += int(cv_val)
+                    group['messaging_contacts'] = group.get('messaging_contacts', 0) + int(cv_val)
+                    if (cv_type in ['messaging_conversation_started', 'onsite_conversion.messaging_conversation_started', 'new_messaging_connection'] or 
+                        ('conversation' in cv_type)):
+                        group['messaging_new_contacts'] = group.get('messaging_new_contacts', 0) + int(cv_val)
             
             # Process video actions
             for video_action in (row.get('video_play_actions') or []):
@@ -1006,6 +1141,8 @@ def api_daily_tracking():
             'photo_view': sum(d['photo_view'] for d in daily_data),
             'video_views': sum(d['video_views'] for d in daily_data),
             'messaging_starts': sum(d['messaging_starts'] for d in daily_data),
+            'messaging_contacts': sum(d.get('messaging_contacts', 0) for d in daily_data),
+            'messaging_new_contacts': sum(d.get('messaging_new_contacts', 0) for d in daily_data),
             'purchases': sum(d['purchases'] for d in daily_data),
             'purchase_value': sum(d['purchase_value'] for d in daily_data),
             'budget_remaining': sum(d['budget_remaining'] for d in daily_data),

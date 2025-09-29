@@ -185,8 +185,8 @@
                             <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tần suất</th>
                             <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kết quả</th>
                             <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPC</th>
-                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Messaging Starts</th>
-                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conversions</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Người liên hệ nhắn tin</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Người liên hệ nhắn tin mới</th>
                             <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ROAS</th>
                             <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CTR</th>
                             <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPM</th>
@@ -233,8 +233,8 @@
                     <div>
                         <h4 class="text-sm font-medium text-gray-900 mb-2">Chuyển đổi</h4>
                         <div class="text-xs text-gray-600 space-y-1">
-                            <div>Tổng Messaging: <span id="summary-total-messaging" class="font-medium">0</span></div>
-                            <div>Tổng Conversions: <span id="summary-total-conversions" class="font-medium">0</span></div>
+                    <div>Tổng Người liên hệ nhắn tin: <span id="summary-total-messaging" class="font-medium">0</span></div>
+                    <div>Tổng Người liên hệ nhắn tin mới: <span id="summary-total-conversions" class="font-medium">0</span></div>
                             <div>ROAS trung bình: <span id="summary-avg-roas" class="font-medium">0</span></div>
                         </div>
                     </div>
@@ -247,6 +247,41 @@
                             <div><strong>ROAS:</strong> Lợi nhuận/chi phí quảng cáo</div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pivot nâng cao theo brief -->
+        <div class="bg-white rounded-lg shadow mt-8 border border-gray-100">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold">Pivot nâng cao</h3>
+                    <p class="text-sm text-gray-600">Các chỉ số: Chi tiêu, Reach, Impressions, New messages, CP New message, Purchase value, Engagement</p>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chi tiêu</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Impressions</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Người liên hệ nhắn tin mới</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CP Người liên hệ nhắn tin mới</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá trị chuyển đổi mua</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pivot-adv-table" class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Đang tải...</td></tr>
+                    </tbody>
+                    <tfoot id="pivot-adv-foot"></tfoot>
+                </table>
+            </div>
+            <div class="p-6">
+                <div class="h-64">
+                    <canvas id="pivot-adv-line"></canvas>
                 </div>
             </div>
         </div>
@@ -1051,6 +1086,9 @@
                 dailyTrackingData = data;
                 updateDailyTrackingTable(data);
                 updateDailySummaryCards(data);
+                if (typeof updatePivotAdvanced === 'function') {
+                    updatePivotAdvanced(data);
+                }
                 
                 // Show campaign status
                 const statusEl = document.getElementById('campaign-status');
@@ -1106,7 +1144,8 @@
                 const clicks = parseInt(day.clicks || 0);
                 const linkClicks = parseInt(day.inline_link_clicks || 0);
                 const engagement = parseInt(day.post_engagement || 0);
-                const messagingStarts = parseInt(day.messaging_starts || 0);
+                const messagingStarts = parseInt(day.messaging_contacts || day.messaging_starts || 0);
+                const messagingNew = parseInt(day.messaging_new_contacts || 0);
                 const purchases = parseInt(day.purchases || 0);
                 const purchaseValue = parseFloat(day.purchase_value || 0);
                 const frequency = parseFloat(day.frequency || 0);
@@ -1150,7 +1189,7 @@
                     <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${result}</td>
                     <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${VND_FMT.format(cpc)}</td>
                     <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(messagingStarts)}</td>
-                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(purchases)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(messagingNew)}</td>
                     <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${roas.toFixed(2)}</td>
                     <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${ctr.toFixed(2)}%</td>
                     <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${VND_FMT.format(cpm)}</td>
@@ -1180,7 +1219,8 @@
             const clicks = parseInt(totals.clicks || 0);
             const linkClicks = parseInt(totals.inline_link_clicks || 0);
             const engagement = parseInt(totals.post_engagement || 0);
-            const messagingStarts = parseInt(totals.messaging_starts || 0);
+            const messagingStarts = parseInt(totals.messaging_contacts || totals.messaging_starts || 0);
+            const messagingNew = parseInt(totals.messaging_new_contacts || 0);
             const purchases = parseInt(totals.purchases || 0);
             const purchaseValue = parseFloat(totals.purchase_value || 0);
             
@@ -1206,7 +1246,7 @@
             document.getElementById('summary-avg-cpc').textContent = VND_FMT.format(avgCpc);
             document.getElementById('summary-avg-cpm').textContent = VND_FMT.format(avgCpm);
             document.getElementById('summary-total-messaging').textContent = NUM_FMT.format(messagingStarts);
-            document.getElementById('summary-total-conversions').textContent = NUM_FMT.format(purchases);
+            document.getElementById('summary-total-conversions').textContent = NUM_FMT.format(messagingNew);
             document.getElementById('summary-avg-roas').textContent = avgRoas.toFixed(2);
         }
 
@@ -1223,7 +1263,8 @@
                 const clicks = parseInt(day.clicks || 0);
                 const linkClicks = parseInt(day.inline_link_clicks || 0);
                 const engagement = parseInt(day.post_engagement || 0);
-                const messagingStarts = parseInt(day.messaging_starts || 0);
+                const messagingStarts = parseInt(day.messaging_contacts || day.messaging_starts || 0);
+                const messagingNew = parseInt(day.messaging_new_contacts || 0);
                 const purchases = parseInt(day.purchases || 0);
                 const purchaseValue = parseFloat(day.purchase_value || 0);
                 const frequency = parseFloat(day.frequency || 0);
@@ -1250,8 +1291,8 @@
                     'Tần suất': frequency,
                     'Kết quả': linkClicks > 0 ? `${linkClicks} Link Clicks` : engagement > 0 ? `${engagement} Engagement` : `${clicks} Clicks`,
                     'CPC': cpc,
-                    'Messaging Starts': messagingStarts,
-                    'Conversions': purchases,
+                    'Người liên hệ nhắn tin': messagingStarts,
+                    'Người liên hệ nhắn tin mới': messagingNew,
                     'ROAS': roas,
                     'CTR': ctr,
                     'CPM': cpm,

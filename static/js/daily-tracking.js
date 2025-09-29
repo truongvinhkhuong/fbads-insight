@@ -66,6 +66,9 @@ async function loadDailyTrackingData() {
         dailyTrackingData = data;
         updateDailyTrackingTable(data);
         updateDailySummaryCards(data);
+        if (typeof updatePivotAdvanced === 'function') {
+            try { updatePivotAdvanced(data); } catch (e) { console.error('updatePivotAdvanced error', e); }
+        }
         
         // Show campaign status
         const statusEl = document.getElementById('campaign-status');
@@ -121,7 +124,8 @@ function updateDailyTrackingTable(data) {
         const clicks = parseInt(day.clicks || 0);
         const linkClicks = parseInt(day.inline_link_clicks || 0);
         const engagement = parseInt(day.post_engagement || 0);
-        const messagingStarts = parseInt(day.messaging_starts || 0);
+        const messagingStarts = parseInt(day.messaging_contacts || day.messaging_starts || 0);
+        const messagingNew = parseInt(day.messaging_new_contacts || 0);
         const purchases = parseInt(day.purchases || 0);
         const purchaseValue = parseFloat(day.purchase_value || 0);
         const frequency = parseFloat(day.frequency || 0);
@@ -165,7 +169,7 @@ function updateDailyTrackingTable(data) {
             <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${result}</td>
             <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${VND_FMT.format(cpc)}</td>
             <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(messagingStarts)}</td>
-            <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(purchases)}</td>
+            <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(messagingNew)}</td>
             <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${roas.toFixed(2)}</td>
             <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${ctr.toFixed(2)}%</td>
             <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${VND_FMT.format(cpm)}</td>
@@ -195,7 +199,8 @@ function updateDailySummaryCards(data) {
     const clicks = parseInt(totals.clicks || 0);
     const linkClicks = parseInt(totals.inline_link_clicks || 0);
     const engagement = parseInt(totals.post_engagement || 0);
-    const messagingStarts = parseInt(totals.messaging_starts || 0);
+    const messagingStarts = parseInt(totals.messaging_contacts || totals.messaging_starts || 0);
+    const messagingNew = parseInt(totals.messaging_new_contacts || 0);
     const purchases = parseInt(totals.purchases || 0);
     const purchaseValue = parseFloat(totals.purchase_value || 0);
     
@@ -221,7 +226,7 @@ function updateDailySummaryCards(data) {
     document.getElementById('summary-avg-cpc').textContent = VND_FMT.format(avgCpc);
     document.getElementById('summary-avg-cpm').textContent = VND_FMT.format(avgCpm);
     document.getElementById('summary-total-messaging').textContent = NUM_FMT.format(messagingStarts);
-    document.getElementById('summary-total-conversions').textContent = NUM_FMT.format(purchases);
+    document.getElementById('summary-total-conversions').textContent = NUM_FMT.format(messagingNew);
     document.getElementById('summary-avg-roas').textContent = avgRoas.toFixed(2);
 }
 
@@ -238,7 +243,8 @@ function exportDailyData() {
         const clicks = parseInt(day.clicks || 0);
         const linkClicks = parseInt(day.inline_link_clicks || 0);
         const engagement = parseInt(day.post_engagement || 0);
-        const messagingStarts = parseInt(day.messaging_starts || 0);
+        const messagingStarts = parseInt(day.messaging_contacts || day.messaging_starts || 0);
+        const messagingNew = parseInt(day.messaging_new_contacts || 0);
         const purchases = parseInt(day.purchases || 0);
         const purchaseValue = parseFloat(day.purchase_value || 0);
         const frequency = parseFloat(day.frequency || 0);
@@ -265,8 +271,8 @@ function exportDailyData() {
             'Tần suất': frequency,
             'Kết quả': linkClicks > 0 ? `${linkClicks} Link Clicks` : engagement > 0 ? `${engagement} Engagement` : `${clicks} Clicks`,
             'CPC': cpc,
-            'Messaging Starts': messagingStarts,
-            'Conversions': purchases,
+            'Người liên hệ nhắn tin': messagingStarts,
+            'Người liên hệ nhắn tin mới': messagingNew,
             'ROAS': roas,
             'CTR': ctr,
             'CPM': cpm,

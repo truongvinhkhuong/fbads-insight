@@ -5,6 +5,7 @@
     {% include 'components/charts-section.html' %}
     {% include 'components/campaigns-table.html' %}
     {% include 'components/daily-tracking.html' %}
+    {% include 'components/pivot-advanced.html' %}
     {% include 'components/insights-panel.html' %}
 {% endblock %}
 
@@ -12,6 +13,10 @@
 <script>
     // Wire buttons and event listeners
     document.addEventListener('DOMContentLoaded',()=>{
+        // Initialize daily tracking
+        if (typeof initializeDailyTracking === 'function') {
+            initializeDailyTracking();
+        }
         let currentCampaign='';
         const patchView=window.viewInsights;
         
