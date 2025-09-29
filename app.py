@@ -290,20 +290,54 @@ class OpenAIChatbot:
             return "Xin lỗi, có lỗi xảy ra khi xử lý yêu cầu."
 
 def load_ads_data() -> Dict[str, Any]:
-    try:
-        with open('ads_data.json', 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return data
-    except FileNotFoundError:
-        logger.warning("File ads_data.json không tìm thấy, trả về dữ liệu mẫu")
-        return {
-            'extraction_date': datetime.now().isoformat(),
-            'campaigns': [],
-            'message': 'Dữ liệu mẫu - chưa có dữ liệu thực'
-        }
-    except Exception as e:
-        logger.error(f"Lỗi khi đọc file dữ liệu: {e}")
-        return {'error': f'Lỗi đọc dữ liệu: {str(e)}'}
+    import time
+    max_retries = 3
+    retry_delay = 0.1
+    
+    for attempt in range(max_retries):
+        try:
+            with open('ads_data.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # Validate that we have campaigns data
+            if not data.get('campaigns') or len(data.get('campaigns', [])) == 0:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Empty campaigns data on attempt {attempt + 1}, retrying...")
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    logger.warning("No campaigns found in data file")
+                    return {
+                        'extraction_date': datetime.now().isoformat(),
+                        'campaigns': [],
+                        'message': 'Không tìm thấy chiến dịch nào trong dữ liệu'
+                    }
+            
+            return data
+            
+        except FileNotFoundError:
+            logger.warning(f"File ads_data.json không tìm thấy, attempt {attempt + 1}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                continue
+            return {
+                'extraction_date': datetime.now().isoformat(),
+                'campaigns': [],
+                'message': 'File dữ liệu không tồn tại'
+            }
+        except (json.JSONDecodeError, PermissionError, OSError) as e:
+            logger.warning(f"Lỗi đọc file dữ liệu attempt {attempt + 1}: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                continue
+            logger.error(f"Lỗi khi đọc file dữ liệu sau {max_retries} attempts: {e}")
+            return {'error': f'Lỗi đọc dữ liệu: {str(e)}'}
+        except Exception as e:
+            logger.error(f"Lỗi không mong muốn khi đọc file dữ liệu: {e}")
+            return {'error': f'Lỗi đọc dữ liệu: {str(e)}'}
+    
+    # This should not be reached, but just in case
+    return {'error': 'Không thể đọc dữ liệu sau nhiều lần thử'}
 
 @app.route('/')
 def index():
@@ -460,6 +494,9 @@ def api_campaign_insights():
             'photo_view': 0,
             'video_views': 0,
             'unique_inline_link_clicks': 0,
+            # Custom aggregated actions for funnel
+            'messaging_starts': 0,
+            'purchases': 0,
         }
 
         def sum_video_actions(action_list):
@@ -494,6 +531,12 @@ def api_campaign_insights():
                     totals['photo_view'] += val
                 elif at in ('link_click', 'landing_page_view'):
                     totals['inline_link_clicks'] += val
+                # Messaging conversations/new connections
+                elif 'messaging' in at and ('conversation' in at or 'new_messaging_connection' in at or 'first_reply' in at):
+                    totals['messaging_starts'] += val
+                # Purchases (cover multiple action type variants)
+                elif at == 'purchase' or 'purchase' in at:
+                    totals['purchases'] += val
 
             totals['video_views'] += sum_video_actions(r.get('video_play_actions'))
             totals['video_views'] += sum_video_actions(r.get('video_3_sec_watched_actions'))
@@ -606,6 +649,228 @@ def api_campaign_ads():
         return jsonify({'items': result})
     except Exception as e:
         logger.error(f"Lỗi /api/campaign-ads: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/daily-tracking')
+def api_daily_tracking():
+    try:
+        date_preset = request.args.get('date_preset', 'last_30d').strip()
+        token = get_access_token()
+        
+        if not token:
+            return jsonify({'error': 'Missing access token'}), 500
+        
+        # Get all campaigns from ads_data.json
+        ads_data = load_ads_data()
+        if ads_data.get('error'):
+            return jsonify({'error': ads_data['error']}), 500
+        
+        campaigns = ads_data.get('campaigns', [])
+        if not campaigns:
+            return jsonify({'error': 'No campaigns found', 'daily': [], 'totals': {}})
+        
+        base_url = 'https://graph.facebook.com/v23.0'
+        all_daily_data = []
+        
+        # Aggregate data from all campaigns
+        successful_campaigns = 0
+        failed_campaigns = 0
+        
+        for campaign in campaigns:
+            campaign_id = campaign.get('campaign_id')
+            if not campaign_id:
+                continue
+                
+            try:
+                url = f"{base_url}/{campaign_id}/insights"
+                # Start with basic fields that are most likely to be available
+                params = {
+                    'access_token': token,
+                    'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency',
+                    'date_preset': date_preset,
+                    'time_increment': 1
+                }
+                
+                response = requests.get(url, params=params, timeout=30)
+                if response.status_code == 200:
+                    data = response.json()
+                    daily_rows = data.get('data', [])
+                    if daily_rows:
+                        all_daily_data.extend(daily_rows)
+                        successful_campaigns += 1
+                    else:
+                        # Try with lifetime data if no data for the period
+                        params_lifetime = params.copy()
+                        params_lifetime['date_preset'] = 'lifetime'
+                        response_lifetime = requests.get(url, params=params_lifetime, timeout=30)
+                        if response_lifetime.status_code == 200:
+                            lifetime_data = response_lifetime.json()
+                            lifetime_rows = lifetime_data.get('data', [])
+                            if lifetime_rows:
+                                all_daily_data.extend(lifetime_rows)
+                                successful_campaigns += 1
+                            else:
+                                failed_campaigns += 1
+                        else:
+                            failed_campaigns += 1
+                else:
+                    # Try with lifetime data as fallback
+                    params_lifetime = params.copy()
+                    params_lifetime['date_preset'] = 'lifetime'
+                    response_lifetime = requests.get(url, params=params_lifetime, timeout=30)
+                    if response_lifetime.status_code == 200:
+                        lifetime_data = response_lifetime.json()
+                        lifetime_rows = lifetime_data.get('data', [])
+                        if lifetime_rows:
+                            all_daily_data.extend(lifetime_rows)
+                            successful_campaigns += 1
+                        else:
+                            failed_campaigns += 1
+                    else:
+                        failed_campaigns += 1
+                        logger.warning(f"Failed to get insights for campaign {campaign_id}: {response.status_code}")
+                    
+            except Exception as e:
+                failed_campaigns += 1
+                logger.warning(f"Error fetching insights for campaign {campaign_id}: {e}")
+                continue
+        
+        logger.info(f"Daily tracking: {successful_campaigns} successful, {failed_campaigns} failed campaigns")
+        
+        # Group by date and aggregate
+        date_groups = {}
+        for row in all_daily_data:
+            date_key = row.get('date_start') or row.get('date') or row.get('date_stop') or 'unknown'
+            if date_key not in date_groups:
+                date_groups[date_key] = {
+                    'date_start': date_key,
+                    'impressions': 0,
+                    'clicks': 0,
+                    'spend': 0.0,
+                    'reach': 0,
+                    'inline_link_clicks': 0,
+                    'post_engagement': 0,
+                    'photo_view': 0,
+                    'video_views': 0,
+                    'video_2_sec_watched_actions': 0,
+                    'messaging_starts': 0,
+                    'purchases': 0,
+                    'purchase_value': 0.0,
+                    'campaign_count': 0
+                }
+            
+            # Sum numeric fields
+            group = date_groups[date_key]
+            group['impressions'] += int(float(row.get('impressions', 0) or 0))
+            group['clicks'] += int(float(row.get('clicks', 0) or 0))
+            group['spend'] += float(row.get('spend', 0) or 0)
+            group['reach'] += int(float(row.get('reach', 0) or 0))
+            group['inline_link_clicks'] += int(float(row.get('inline_link_clicks', 0) or 0))
+            group['post_engagement'] += int(float(row.get('post_engagement', 0) or 0))
+            group['photo_view'] += int(float(row.get('photo_view', 0) or 0))
+            group['video_views'] += int(float(row.get('video_views', 0) or 0))
+            group['messaging_starts'] += int(float(row.get('messaging_starts', 0) or 0))
+            group['purchases'] += int(float(row.get('purchases', 0) or 0))
+            group['purchase_value'] += float(row.get('purchase_value', 0) or 0)
+            group['campaign_count'] += 1
+            
+            # Process actions array
+            for action in (row.get('actions') or []):
+                action_type = (action.get('action_type') or '').lower()
+                try:
+                    value = int(float(action.get('value', 0) or 0))
+                except Exception:
+                    value = 0
+                    
+                if action_type == 'post_engagement':
+                    group['post_engagement'] += value
+                elif action_type == 'photo_view':
+                    group['photo_view'] += value
+                elif action_type == 'messaging_starts':
+                    group['messaging_starts'] += value
+                elif action_type == 'purchase' or 'purchase' in action_type:
+                    group['purchases'] += value
+            
+            # Process video actions
+            for video_action in (row.get('video_play_actions') or []):
+                try:
+                    group['video_views'] += int(float(video_action.get('value', 0) or 0))
+                except Exception:
+                    continue
+            
+            # Process video 2s+ actions
+            for video_action in (row.get('video_2_sec_watched_actions') or []):
+                try:
+                    group['video_2_sec_watched_actions'] += int(float(video_action.get('value', 0) or 0))
+                except Exception:
+                    continue
+        
+        # Calculate derived metrics for each day
+        daily_data = []
+        for date_key, group in date_groups.items():
+            # Calculate frequency
+            group['frequency'] = (group['impressions'] / max(group['reach'], 1)) if group['reach'] > 0 else 0.0
+            
+            # Calculate CTR
+            group['ctr'] = (group['clicks'] / max(group['impressions'], 1)) * 100.0
+            
+            # Calculate CPC
+            group['cpc'] = (group['spend'] / max(group['clicks'], 1)) if group['clicks'] > 0 else 0.0
+            
+            # Calculate CPM
+            group['cpm'] = (group['spend'] / max(group['impressions'], 1)) * 1000.0 if group['impressions'] > 0 else 0.0
+            
+            # Calculate ROAS
+            group['roas'] = (group['purchase_value'] / max(group['spend'], 1)) if group['spend'] > 0 else 0.0
+            
+            daily_data.append(group)
+        
+        # Sort by date
+        daily_data.sort(key=lambda x: x['date_start'])
+        
+        # Calculate totals
+        totals = {
+            'impressions': sum(d['impressions'] for d in daily_data),
+            'clicks': sum(d['clicks'] for d in daily_data),
+            'spend': sum(d['spend'] for d in daily_data),
+            'reach': sum(d['reach'] for d in daily_data),
+            'inline_link_clicks': sum(d['inline_link_clicks'] for d in daily_data),
+            'post_engagement': sum(d['post_engagement'] for d in daily_data),
+            'photo_view': sum(d['photo_view'] for d in daily_data),
+            'video_views': sum(d['video_views'] for d in daily_data),
+            'messaging_starts': sum(d['messaging_starts'] for d in daily_data),
+            'purchases': sum(d['purchases'] for d in daily_data),
+            'purchase_value': sum(d['purchase_value'] for d in daily_data),
+            'total_campaigns': len(campaigns),
+            'active_days': len(daily_data)
+        }
+        
+        # Calculate average metrics
+        if daily_data:
+            totals['avg_frequency'] = sum(d['frequency'] for d in daily_data) / len(daily_data)
+            totals['avg_ctr'] = sum(d['ctr'] for d in daily_data) / len(daily_data)
+            totals['avg_cpc'] = sum(d['cpc'] for d in daily_data) / len(daily_data)
+            totals['avg_cpm'] = sum(d['cpm'] for d in daily_data) / len(daily_data)
+            totals['avg_roas'] = sum(d['roas'] for d in daily_data) / len(daily_data)
+        else:
+            totals['avg_frequency'] = 0
+            totals['avg_ctr'] = 0
+            totals['avg_cpc'] = 0
+            totals['avg_cpm'] = 0
+            totals['avg_roas'] = 0
+        
+        return jsonify({
+            'daily': daily_data,
+            'totals': totals,
+            'date_preset': date_preset,
+            'extraction_date': datetime.now().isoformat(),
+            'successful_campaigns': successful_campaigns,
+            'failed_campaigns': failed_campaigns,
+            'total_campaigns': len(campaigns)
+        })
+        
+    except Exception as e:
+        logger.error(f"Lỗi /api/daily-tracking: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/campaign-ai-insights', methods=['POST'])

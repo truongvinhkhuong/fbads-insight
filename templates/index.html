@@ -116,6 +116,138 @@
             </div>
         </div>
 
+        <!-- Daily Tracking Section -->
+        <div class="bg-white rounded-lg shadow mt-8 border border-gray-100">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold">Tracking Ads Chi Tiết</h3>
+                    <p class="text-sm text-gray-600">Daily Tracking - Bảng tổng quan về tài khoản với 25 metrics quan trọng</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 text-sm">
+                        <label>Khoảng thời gian:</label>
+                        <select id="daily-date-preset" class="border px-2 py-1 rounded">
+                            <option value="last_7d">7 ngày</option>
+                            <option value="last_30d" selected>30 ngày</option>
+                            <option value="last_90d">90 ngày</option>
+                            <option value="lifetime">Lifetime</option>
+                        </select>
+                    </div>
+                    <button id="btn-refresh-daily" class="px-3 py-1 text-white rounded btn-primary text-sm">Cập nhật</button>
+                    <button id="btn-export-daily" class="px-3 py-1 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;">Export CSV</button>
+                </div>
+            </div>
+            
+            <!-- Daily Metrics Summary Cards -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <div class="text-xs text-blue-600 font-medium">Tổng chi tiêu</div>
+                        <div id="daily-total-spend" class="text-lg font-bold text-blue-800">$0</div>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4">
+                        <div class="text-xs text-green-600 font-medium">Tổng Reach</div>
+                        <div id="daily-total-reach" class="text-lg font-bold text-green-800">0</div>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg p-4">
+                        <div class="text-xs text-purple-600 font-medium">Tổng Impressions</div>
+                        <div id="daily-total-impressions" class="text-lg font-bold text-purple-800">0</div>
+                    </div>
+                    <div class="bg-orange-50 rounded-lg p-4">
+                        <div class="text-xs text-orange-600 font-medium">CTR Trung bình</div>
+                        <div id="daily-avg-ctr" class="text-lg font-bold text-orange-800">0%</div>
+                    </div>
+                    <div class="bg-red-50 rounded-lg p-4">
+                        <div class="text-xs text-red-600 font-medium">CPC Trung bình</div>
+                        <div id="daily-avg-cpc" class="text-lg font-bold text-red-800">$0</div>
+                    </div>
+                    <div class="bg-indigo-50 rounded-lg p-4">
+                        <div class="text-xs text-indigo-600 font-medium">CPM Trung bình</div>
+                        <div id="daily-avg-cpm" class="text-lg font-bold text-indigo-800">$0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Pivot Table -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">Ngày</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phân phối</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng chi tiêu</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngân sách</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Impressions</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tần suất</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kết quả</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPC</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Messaging Starts</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conversions</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ROAS</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CTR</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPM</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Link Clicks</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Link CTR</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Link CPC</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Video Views</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo Views</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPE</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Video 2s+</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Value</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaigns</th>
+                        </tr>
+                    </thead>
+                    <tbody id="daily-tracking-table" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="24" class="px-6 py-4 text-center text-gray-500">Đang tải dữ liệu...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Summary Row -->
+            <div class="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-900 mb-2">Tổng hợp kết quả</h4>
+                        <div class="text-xs text-gray-600 space-y-1">
+                            <div>Tổng chi tiêu: <span id="summary-total-spend" class="font-medium">$0</span></div>
+                            <div>Tổng Reach: <span id="summary-total-reach" class="font-medium">0</span></div>
+                            <div id="campaign-status" class="text-xs text-blue-600 hidden">Đang tải...</div>
+                            <div>Tổng Impressions: <span id="summary-total-impressions" class="font-medium">0</span></div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-900 mb-2">Chỉ số trung bình</h4>
+                        <div class="text-xs text-gray-600 space-y-1">
+                            <div>CTR trung bình: <span id="summary-avg-ctr" class="font-medium">0%</span></div>
+                            <div>CPC trung bình: <span id="summary-avg-cpc" class="font-medium">$0</span></div>
+                            <div>CPM trung bình: <span id="summary-avg-cpm" class="font-medium">$0</span></div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-900 mb-2">Chuyển đổi</h4>
+                        <div class="text-xs text-gray-600 space-y-1">
+                            <div>Tổng Messaging: <span id="summary-total-messaging" class="font-medium">0</span></div>
+                            <div>Tổng Conversions: <span id="summary-total-conversions" class="font-medium">0</span></div>
+                            <div>ROAS trung bình: <span id="summary-avg-roas" class="font-medium">0</span></div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-900 mb-2">Giải thích metrics</h4>
+                        <div class="text-xs text-gray-600 space-y-1">
+                            <div><strong>CTR:</strong> Tỷ lệ nhấp chuột</div>
+                            <div><strong>CPC:</strong> Chi phí mỗi click</div>
+                            <div><strong>CPM:</strong> Chi phí 1000 lần hiển thị</div>
+                            <div><strong>ROAS:</strong> Lợi nhuận/chi phí quảng cáo</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="bg-white rounded-lg shadow mt-8 hidden border border-gray-100" id="insights-panel">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <h3 class="text-lg font-semibold">Insights Chiến dịch</h3>
@@ -173,6 +305,17 @@
             </div>
             <div class="p-6">
                 <div style="height:320px"><canvas id="insightsChart"></canvas></div>
+            </div>
+            
+            <!-- Funnel Chart Section -->
+            <div class="px-6 pb-6">
+                <h4 class="text-lg font-semibold mb-4 text-gray-800">Biểu đồ Phễu (Funnel Chart)</h4>
+                <p class="text-sm text-gray-600 mb-4">Hiển thị quá trình chuyển đổi từ hiển thị đến chuyển đổi</p>
+                <div class="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+                    <div id="funnelChart" style="min-height:400px; position: relative;">
+                        <!-- Funnel chart will be rendered here -->
+                    </div>
+                </div>
             </div>
             <div class="px-6 pb-6">
                 <div id="insights-note" class="hidden mb-3 text-sm bg-yellow-50 text-yellow-800 border border-yellow-200 rounded px-3 py-2"></div>
@@ -298,6 +441,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadAdsData();
             initializeChatbot();
+            initializeDailyTracking();
         });
 
         async function loadAdsData() {
@@ -409,10 +553,25 @@
                 }
                 const res = await fetch(`/api/campaign-insights?campaign_id=${encodeURIComponent(campaignId)}&status=${encodeURIComponent(status||'')}&${q}`);
                 const data = await res.json();
-                if (data.error && (!Array.isArray(data.daily) || data.daily.length === 0)) {
+                if (data.error) {
                     console.warn('Insights error', data.error);
                     const note = document.getElementById('insights-note');
-                    if (note) { note.textContent = 'Không lấy được insights cho khoảng ngày này.'; note.classList.remove('hidden'); }
+                    if (note) {
+                        let errorMessage = data.error;
+                        if (typeof data.error === 'object' && data.error.message) {
+                            errorMessage = data.error.message;
+                        }
+                        
+                        // Check for token expiration
+                        if (errorMessage.includes('expired') || errorMessage.includes('Session has expired')) {
+                            errorMessage = 'Token Facebook đã hết hạn. Vui lòng cập nhật token mới trong file .env';
+                        } else if (errorMessage.includes('190')) {
+                            errorMessage = 'Token Facebook không hợp lệ hoặc đã hết hạn. Vui lòng cập nhật token mới.';
+                        }
+                        
+                        note.textContent = errorMessage;
+                        note.classList.remove('hidden');
+                    }
                     return;
                 }
                 const panel = document.getElementById('insights-panel');
@@ -440,6 +599,9 @@
                 document.getElementById('insights-video-views').textContent = (data.totals.video_views||0).toLocaleString('vi-VN');
                 const totalViews = (data.totals.impressions||0) + (data.totals.video_views||0);
                 document.getElementById('insights-total-views').textContent = totalViews.toLocaleString('vi-VN');
+
+                // Render funnel chart
+                renderFunnelChart(data.totals);
 
                 // Show fallback note if any
                 const note = document.getElementById('insights-note');
@@ -556,6 +718,153 @@
             })
             box.appendChild(table);
         }
+        
+        // Funnel Chart Function - 3D Style
+        function renderFunnelChart(totals) {
+            // Clear any existing chart
+            charts.funnel && charts.funnel.destroy();
+            
+            // Calculate funnel metrics
+            const impressions = parseInt(totals.impressions || 0);
+            const clicks = parseInt(totals.clicks || 0);
+            const linkClicks = parseInt(totals.inline_link_clicks || 0);
+            const engagement = parseInt(totals.post_engagement || 0);
+            const reach = parseInt(totals.reach || 0);
+            const msgStarts = parseInt(totals.messaging_starts || 0);
+            const purchases = parseInt(totals.purchases || 0);
+            const spend = parseFloat(totals.spend || 0);
+            
+            // Calculate cost metrics
+            const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
+            const cpc = clicks > 0 ? spend / clicks : 0;
+            const cpe = engagement > 0 ? spend / engagement : 0;
+            const cpl = linkClicks > 0 ? spend / linkClicks : 0;
+            const cpmsg = msgStarts > 0 ? spend / msgStarts : 0;
+            const cpa = purchases > 0 ? spend / purchases : 0;
+            
+            // Define funnel stages with 3D colors
+            const maxMetric = Math.max(impressions, reach, engagement, Math.max(linkClicks, clicks, msgStarts), Math.max(purchases, 1));
+
+            const funnelData = [
+                {
+                    stageKey: 'display',
+                    color: '#0f3b66',
+                    lightColor: 'rgba(15, 59, 102, 0.85)',
+                    widthValue: impressions,
+                    header: 'Impressions',
+                    lines: [
+                        { label: 'Impressions', value: impressions },
+                        { label: 'Reach', value: reach }
+                    ],
+                    right: [
+                        { label: 'CPM', value: cpm, decimals: 1, hint: 'Hiển thị' }
+                    ]
+                },
+                {
+                    stageKey: 'engagement',
+                    color: '#07869b',
+                    lightColor: 'rgba(7, 134, 155, 0.85)',
+                    widthValue: engagement,
+                    header: 'Post Engagement',
+                    lines: [
+                        { label: 'Post Engagement', value: engagement }
+                    ],
+                    right: [
+                        { label: 'Cost per Post Engagement', value: cpe, decimals: 2, hint: 'Tương tác' }
+                    ]
+                },
+                {
+                    stageKey: 'interest',
+                    color: '#e6a500',
+                    lightColor: 'rgba(230, 165, 0, 0.9)',
+                    widthValue: Math.max(linkClicks, clicks, msgStarts),
+                    header: 'Interest',
+                    lines: [
+                        { label: 'Link Clicks', value: linkClicks },
+                        { label: 'Clicks', value: clicks },
+                        { label: 'Messaging Starts', value: msgStarts }
+                    ],
+                    right: [
+                        { label: 'CPC', value: cpc, decimals: 1, hint: 'Quan tâm' },
+                        { label: 'Cost per Message', value: cpmsg, decimals: 1 }
+                    ]
+                },
+                {
+                    stageKey: 'conversion',
+                    color: '#d94a4a',
+                    lightColor: 'rgba(217, 74, 74, 0.9)',
+                    widthValue: Math.max(purchases, 1),
+                    header: 'Purchases',
+                    lines: [
+                        { label: 'Purchases', value: purchases }
+                    ],
+                    right: [
+                        { label: 'CPA', value: cpa, decimals: 1, hint: 'Chuyển đổi' }
+                    ]
+                }
+            ];
+            
+            // Create custom funnel chart using HTML/CSS
+            const funnelContainer = document.getElementById('funnelChart');
+            funnelContainer.innerHTML = `
+                <div class="funnel-container" style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px;">
+                    <div class="funnel-header" style="display: flex; justify-content: space-between; width: 100%; margin-bottom: 20px;">
+                        <span style="font-weight: 600; color: #374151;">Đã chi tiêu</span>
+                        <span style="font-weight: 600; color: #374151;">Total Cost ${VND_FMT.format(spend)}</span>
+                    </div>
+                    ${funnelData.map((stage, index) => {
+                        const width = Math.max(25, (stage.widthValue / Math.max(maxMetric, 1)) * 100);
+                        return `
+                            <div class="funnel-stage" style="display: flex; align-items: center; width: 100%; margin-bottom: 12px;">
+                                <div class="funnel-segment" style="
+                                    width: ${width}%;
+                                    height: 60px;
+                                    background: linear-gradient(135deg, ${stage.color}, ${stage.lightColor});
+                                    border-radius: 8px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    color: white;
+                                    font-weight: bold;
+                                    text-align: center;
+                                    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                                    position: relative;
+                                    overflow: hidden;
+                                ">
+                                    <div style="
+                                        position: absolute;
+                                        top: 0;
+                                        left: 0;
+                                        right: 0;
+                                        height: 30%;
+                                        background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent);
+                                    "></div>
+                                    <div style="z-index: 1; line-height: 1.2;">
+                                        <div style="font-size: 14px; margin-bottom: 2px;">${stage.header}</div>
+                                        ${stage.lines.map(l=>`<div style=\"font-size:16px; font-weight:700;\">${l.label}: ${NUM_FMT.format(parseInt(l.value||0))}</div>`).join('')}
+                                    </div>
+                                </div>
+                                <div class="cost-metrics" style="
+                                    margin-left: 20px;
+                                    text-align: left;
+                                    min-width: 200px;
+                                ">
+                                    ${stage.right.map(r=>`
+                                        <div style=\"display:flex; align-items:center; gap:10px; margin-bottom:4px;\">
+                                            <div>
+                                                <div style=\"font-size:12px; color:#6b7280;\">${r.label}</div>
+                                                <div style=\"font-size:14px; font-weight:600; color:#374151;\">${(r.value||0).toFixed(r.decimals ?? 1)}</div>
+                                            </div>
+                                            ${r.hint?`<div style=\"font-size:12px; color:#374151; margin-left:10px; white-space:nowrap;\">${r.hint}</div>`:''}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
         // AI Analysis Functions
         async function performAIAnalysis(campaignId) {
             const aiContent = document.getElementById('ai-analysis-content');
@@ -670,6 +979,255 @@
             document.getElementById('ai-loading').classList.add('hidden');
             document.getElementById('ai-error').classList.add('hidden');
             document.getElementById('ai-cache-indicator').classList.add('hidden');
+        }
+
+        // Daily Tracking Functions
+        let dailyTrackingData = null;
+
+        function initializeDailyTracking() {
+            // Load initial data
+            loadDailyTrackingData();
+            
+            // Event listeners
+            document.getElementById('btn-refresh-daily').addEventListener('click', loadDailyTrackingData);
+            document.getElementById('btn-export-daily').addEventListener('click', exportDailyData);
+            document.getElementById('daily-date-preset').addEventListener('change', loadDailyTrackingData);
+        }
+
+        async function loadDailyTrackingData() {
+            try {
+                const preset = document.getElementById('daily-date-preset').value;
+                const tbody = document.getElementById('daily-tracking-table');
+                tbody.innerHTML = '<tr><td colspan="24" class="px-6 py-4 text-center text-gray-500">Đang tải dữ liệu...</td></tr>';
+                
+                const response = await fetch(`/api/daily-tracking?date_preset=${encodeURIComponent(preset)}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Daily tracking error:', data.error);
+                    let errorMessage = data.error;
+                    if (typeof data.error === 'object' && data.error.message) {
+                        errorMessage = data.error.message;
+                    }
+                    
+                    // Check for token expiration
+                    if (errorMessage.includes('expired') || errorMessage.includes('Session has expired')) {
+                        errorMessage = 'Token Facebook đã hết hạn. Vui lòng cập nhật token mới trong file .env';
+                    }
+                    
+                    tbody.innerHTML = `<tr><td colspan="24" class="px-6 py-4 text-center text-red-500">Lỗi: ${errorMessage}</td></tr>`;
+                    return;
+                }
+                
+                dailyTrackingData = data;
+                updateDailyTrackingTable(data);
+                updateDailySummaryCards(data);
+                
+                // Show campaign status
+                const statusEl = document.getElementById('campaign-status');
+                if (data.total_campaigns > 0) {
+                    statusEl.textContent = `Đã tải ${data.successful_campaigns}/${data.total_campaigns} chiến dịch`;
+                    statusEl.classList.remove('hidden');
+                    if (data.failed_campaigns > 0) {
+                        statusEl.classList.add('text-yellow-600');
+                        statusEl.classList.remove('text-blue-600');
+                    } else {
+                        statusEl.classList.add('text-green-600');
+                        statusEl.classList.remove('text-blue-600');
+                    }
+                } else {
+                    statusEl.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Error loading daily tracking data:', error);
+                const tbody = document.getElementById('daily-tracking-table');
+                tbody.innerHTML = '<tr><td colspan="24" class="px-6 py-4 text-center text-red-500">Lỗi kết nối khi tải dữ liệu</td></tr>';
+            }
+        }
+
+        function updateDailyTrackingTable(data) {
+            const tbody = document.getElementById('daily-tracking-table');
+            tbody.innerHTML = '';
+            
+            if (!data.daily || data.daily.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="24" class="px-6 py-4 text-center text-gray-500">Không có dữ liệu</td></tr>';
+                return;
+            }
+            
+            data.daily.forEach(day => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                // Calculate metrics
+                const spend = parseFloat(day.spend || 0);
+                const reach = parseInt(day.reach || 0);
+                const impressions = parseInt(day.impressions || 0);
+                const clicks = parseInt(day.clicks || 0);
+                const linkClicks = parseInt(day.inline_link_clicks || 0);
+                const engagement = parseInt(day.post_engagement || 0);
+                const messagingStarts = parseInt(day.messaging_starts || 0);
+                const purchases = parseInt(day.purchases || 0);
+                const purchaseValue = parseFloat(day.purchase_value || 0);
+                const frequency = parseFloat(day.frequency || 0);
+                const videoViews = parseInt(day.video_views || 0);
+                
+                // Calculate derived metrics
+                const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+                const linkCtr = impressions > 0 ? (linkClicks / impressions) * 100 : 0;
+                const cpc = clicks > 0 ? spend / clicks : 0;
+                const linkCpc = linkClicks > 0 ? spend / linkClicks : 0;
+                const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
+                const cpe = engagement > 0 ? spend / engagement : 0;
+                const roas = spend > 0 ? purchaseValue / spend : 0;
+                
+                // Determine result based on objective (simplified)
+                const result = linkClicks > 0 ? `${linkClicks} Link Clicks` : 
+                              engagement > 0 ? `${engagement} Engagement` : 
+                              `${clicks} Clicks`;
+                
+                const photoViews = parseInt(day.photo_view || 0);
+                const video2sPlus = parseInt(day.video_2_sec_watched_actions || 0);
+                const campaignCount = parseInt(day.campaign_count || 0);
+                
+                row.innerHTML = `
+                    <td class="px-2 py-3 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white">
+                        ${new Date(day.date_start || day.date).toLocaleDateString('vi-VN')}
+                    </td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-500">-</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">${VND_FMT.format(spend)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-500">-</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(reach)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(impressions)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${frequency.toFixed(2)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${result}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${VND_FMT.format(cpc)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(messagingStarts)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(purchases)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${roas.toFixed(2)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${ctr.toFixed(2)}%</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${VND_FMT.format(cpm)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(engagement)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(linkClicks)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${linkCtr.toFixed(2)}%</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${VND_FMT.format(linkCpc)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(videoViews)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(photoViews)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${VND_FMT.format(cpe)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(video2sPlus)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${VND_FMT.format(purchaseValue)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${campaignCount}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateDailySummaryCards(data) {
+            if (!data.totals) return;
+            
+            const totals = data.totals;
+            const spend = parseFloat(totals.spend || 0);
+            const reach = parseInt(totals.reach || 0);
+            const impressions = parseInt(totals.impressions || 0);
+            const clicks = parseInt(totals.clicks || 0);
+            const linkClicks = parseInt(totals.inline_link_clicks || 0);
+            const engagement = parseInt(totals.post_engagement || 0);
+            const messagingStarts = parseInt(totals.messaging_starts || 0);
+            const purchases = parseInt(totals.purchases || 0);
+            const purchaseValue = parseFloat(totals.purchase_value || 0);
+            
+            // Calculate averages
+            const avgCtr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+            const avgCpc = clicks > 0 ? spend / clicks : 0;
+            const avgCpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
+            const avgRoas = spend > 0 ? purchaseValue / spend : 0;
+            
+            // Update summary cards
+            document.getElementById('daily-total-spend').textContent = VND_FMT.format(spend);
+            document.getElementById('daily-total-reach').textContent = NUM_FMT.format(reach);
+            document.getElementById('daily-total-impressions').textContent = NUM_FMT.format(impressions);
+            document.getElementById('daily-avg-ctr').textContent = avgCtr.toFixed(2) + '%';
+            document.getElementById('daily-avg-cpc').textContent = VND_FMT.format(avgCpc);
+            document.getElementById('daily-avg-cpm').textContent = VND_FMT.format(avgCpm);
+            
+            // Update summary section
+            document.getElementById('summary-total-spend').textContent = VND_FMT.format(spend);
+            document.getElementById('summary-total-reach').textContent = NUM_FMT.format(reach);
+            document.getElementById('summary-total-impressions').textContent = NUM_FMT.format(impressions);
+            document.getElementById('summary-avg-ctr').textContent = avgCtr.toFixed(2) + '%';
+            document.getElementById('summary-avg-cpc').textContent = VND_FMT.format(avgCpc);
+            document.getElementById('summary-avg-cpm').textContent = VND_FMT.format(avgCpm);
+            document.getElementById('summary-total-messaging').textContent = NUM_FMT.format(messagingStarts);
+            document.getElementById('summary-total-conversions').textContent = NUM_FMT.format(purchases);
+            document.getElementById('summary-avg-roas').textContent = avgRoas.toFixed(2);
+        }
+
+        function exportDailyData() {
+            if (!dailyTrackingData || !dailyTrackingData.daily) {
+                alert('Không có dữ liệu để export');
+                return;
+            }
+            
+            const rows = dailyTrackingData.daily.map(day => {
+                const spend = parseFloat(day.spend || 0);
+                const reach = parseInt(day.reach || 0);
+                const impressions = parseInt(day.impressions || 0);
+                const clicks = parseInt(day.clicks || 0);
+                const linkClicks = parseInt(day.inline_link_clicks || 0);
+                const engagement = parseInt(day.post_engagement || 0);
+                const messagingStarts = parseInt(day.messaging_starts || 0);
+                const purchases = parseInt(day.purchases || 0);
+                const purchaseValue = parseFloat(day.purchase_value || 0);
+                const frequency = parseFloat(day.frequency || 0);
+                const videoViews = parseInt(day.video_views || 0);
+                const photoViews = parseInt(day.photo_view || 0);
+                const video2sPlus = parseInt(day.video_2_sec_watched_actions || 0);
+                const campaignCount = parseInt(day.campaign_count || 0);
+                
+                const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+                const linkCtr = impressions > 0 ? (linkClicks / impressions) * 100 : 0;
+                const cpc = clicks > 0 ? spend / clicks : 0;
+                const linkCpc = linkClicks > 0 ? spend / linkClicks : 0;
+                const cpm = impressions > 0 ? (spend / impressions) * 1000 : 0;
+                const cpe = engagement > 0 ? spend / engagement : 0;
+                const roas = spend > 0 ? purchaseValue / spend : 0;
+                
+                return {
+                    'Ngày': new Date(day.date_start || day.date).toLocaleDateString('vi-VN'),
+                    'Phân phối': '-',
+                    'Tổng chi tiêu': spend,
+                    'Ngân sách': '-',
+                    'Reach': reach,
+                    'Impressions': impressions,
+                    'Tần suất': frequency,
+                    'Kết quả': linkClicks > 0 ? `${linkClicks} Link Clicks` : engagement > 0 ? `${engagement} Engagement` : `${clicks} Clicks`,
+                    'CPC': cpc,
+                    'Messaging Starts': messagingStarts,
+                    'Conversions': purchases,
+                    'ROAS': roas,
+                    'CTR': ctr,
+                    'CPM': cpm,
+                    'Engagement': engagement,
+                    'Link Clicks': linkClicks,
+                    'Link CTR': linkCtr,
+                    'Link CPC': linkCpc,
+                    'Video Views': videoViews,
+                    'Photo Views': photoViews,
+                    'CPE': cpe,
+                    'Video 2s+': video2sPlus,
+                    'Purchase Value': purchaseValue,
+                    'Campaigns': campaignCount
+                };
+            });
+            
+            const csv = toCSV(rows);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `daily-tracking-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
         // Wire buttons

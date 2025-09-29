@@ -59,7 +59,8 @@ def get_ads_data():
                 params = {
                     'access_token': access_token,
                     'fields': 'impressions,clicks,spend,ctr,cpc,cpm,reach,frequency,actions',
-                    'date_preset': 'lifetime'
+                    'date_preset': 'maximum',
+                    'level': 'ad'
                 }
                 response = requests.get(url, params=params)
                 
@@ -110,7 +111,8 @@ def get_ads_data():
                 params = {
                     'access_token': access_token,
                     'fields': 'impressions,clicks,spend,ctr,cpc,cpm,reach,frequency',
-                    'date_preset': 'lifetime'
+                    'date_preset': 'maximum',
+                    'level': 'ad'
                 }
                 response = requests.get(url, params=params)
                 

@@ -3,6 +3,7 @@
 import os
 import json
 import logging
+import shutil
 from datetime import datetime, date
 from typing import Dict, List, Any
 import requests
@@ -187,15 +188,28 @@ class FacebookAdsExtractor:
         return all_data
     
     def save_to_json(self, data: Dict[str, Any], filename: str = "ads_data.json") -> bool:
+        import tempfile
+        
         try:
-            with open(filename, 'w', encoding='utf-8') as f:
+            # Write to a temporary file first to make the operation atomic
+            temp_filename = filename + '.tmp'
+            with open(temp_filename, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
+            
+            # Atomically replace the original file
+            shutil.move(temp_filename, filename)
             
             logger.info(f"Dữ liệu đã được lưu vào {filename}")
             return True
             
         except Exception as e:
             logger.error(f"Lỗi khi lưu file: {e}")
+            # Clean up temporary file if it exists
+            try:
+                if os.path.exists(temp_filename):
+                    os.remove(temp_filename)
+            except:
+                pass
             return False
     
     def generate_sample_data(self) -> Dict[str, Any]:
