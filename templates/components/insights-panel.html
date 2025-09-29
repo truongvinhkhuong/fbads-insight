@@ -1,0 +1,164 @@
+<div class="dashboard-card mt-8 hidden" id="insights-panel">
+    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-semibold">Insights Chiến dịch</h3>
+        <button id="close-insights" class="text-sm text-gray-600 hover:text-gray-900">Đóng</button>
+    </div>
+    <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div>
+            <div class="text-sm text-gray-500">Impressions</div>
+            <div id="insights-imp" class="text-2xl font-semibold">0</div>
+        </div>
+        <div>
+            <div class="text-sm text-gray-500">Clicks</div>
+            <div id="insights-clicks" class="text-2xl font-semibold">0</div>
+        </div>
+        <div>
+            <div class="text-sm text-gray-500">Spend</div>
+            <div id="insights-spend" class="text-2xl font-semibold">$0</div>
+        </div>
+        <div>
+            <div class="text-sm text-gray-500">Reach</div>
+            <div id="insights-reach" class="text-2xl font-semibold">0</div>
+        </div>
+        <div>
+            <div class="text-sm text-gray-500">CTR</div>
+            <div id="insights-ctr" class="text-2xl font-semibold">0%</div>
+        </div>
+        <div>
+            <div class="text-sm text-gray-500">Tần suất</div>
+            <div id="insights-frequency" class="text-2xl font-semibold">0</div>
+        </div>
+        <div>
+            <div class="text-sm text-gray-500">Link Clicks</div>
+            <div id="insights-link-clicks" class="text-2xl font-semibold">0</div>
+        </div>
+        <div>
+            <div class="text-sm text-gray-500">Unique Link Clicks</div>
+            <div id="insights-unique-link-clicks" class="text-2xl font-semibold">0</div>
+        </div>
+        <div>
+            <div class="text-sm text-gray-500">Post Engagement</div>
+            <div id="insights-engagement" class="text-2xl font-semibold">0</div>
+        </div>
+        <div>
+            <div class="text-sm text-gray-500">Photo Views</div>
+            <div id="insights-photo-views" class="text-2xl font-semibold">0</div>
+        </div>
+        <div>
+            <div class="text-sm text-gray-500">Video Views</div>
+            <div id="insights-video-views" class="text-2xl font-semibold">0</div>
+        </div>
+        <div>
+            <div class="text-sm text-gray-500">Lượt xem tổng</div>
+            <div id="insights-total-views" class="text-2xl font-semibold">0</div>
+        </div>
+    </div>
+    <div class="p-6">
+        <div class="chart-container" style="height:320px">
+            <canvas id="insightsChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Funnel Chart Section -->
+    <div class="px-6 pb-6">
+        <h4 class="text-lg font-semibold mb-4 text-gray-800">Biểu đồ Phễu (Funnel Chart)</h4>
+        <p class="text-sm text-gray-600 mb-4">Hiển thị quá trình chuyển đổi từ hiển thị đến chuyển đổi</p>
+        <div class="bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+            <div id="funnelChart" style="min-height:400px; position: relative;">
+                <!-- Funnel chart will be rendered here -->
+            </div>
+        </div>
+    </div>
+    
+    <div class="px-6 pb-6">
+        <div id="insights-note" class="hidden mb-3 text-sm bg-yellow-50 text-yellow-800 border border-yellow-200 rounded px-3 py-2"></div>
+        
+        <!-- AI Insights Section -->
+        <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-lg font-semibold text-gray-800">
+                    AI Insights & Recommendations
+                </h4>
+                <button id="btn-ai-analysis" class="px-4 py-2 text-white rounded-lg btn-primary text-sm hover:shadow-md transition-shadow">
+                    Phân tích AI
+                </button>
+            </div>
+            
+            <!-- AI Analysis Results -->
+            <div id="ai-analysis-content" class="hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <!-- Insights Panel -->
+                    <div class="bg-white rounded-lg p-4 border border-gray-200">
+                        <h5 class="font-semibold text-gray-700 mb-3">
+                            Insights (AI Generated)
+                        </h5>
+                        <div id="ai-insights" class="text-sm text-gray-600 leading-relaxed">
+                            <!-- AI insights sẽ được hiển thị ở đây -->
+                        </div>
+                    </div>
+                    
+                    <!-- Recommendations Panel -->
+                    <div class="bg-white rounded-lg p-4 border border-gray-200">
+                        <h5 class="font-semibold text-gray-700 mb-3">
+                            Recommended Actions
+                        </h5>
+                        <div id="ai-recommendations" class="text-sm text-gray-600 leading-relaxed">
+                            <!-- AI recommendations sẽ được hiển thị ở đây -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Analysis Timestamp & Cache Info -->
+                <div class="mt-3 text-xs text-gray-500 text-center" id="ai-analysis-timestamp">
+                    <!-- Timestamp sẽ được hiển thị ở đây -->
+                </div>
+                <div class="mt-1 text-xs text-blue-600 text-center hidden" id="ai-cache-indicator">
+                    Kết quả từ cache (nhanh hơn)
+                </div>
+            </div>
+            
+            <!-- Loading State -->
+            <div id="ai-loading" class="hidden text-center py-8">
+                <div class="inline-flex items-center px-4 py-2 text-sm text-blue-600">
+                    AI đang phân tích dữ liệu campaign...
+                </div>
+            </div>
+            
+            <!-- Error State -->
+            <div id="ai-error" class="hidden text-center py-4">
+                <div class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                    <div id="ai-error-message">Có lỗi xảy ra khi phân tích AI</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+            <div class="inline-flex rounded-md shadow-sm" role="group">
+                <button id="btn-break-placement" class="px-3 py-1 text-sm text-white btn-primary rounded-l">Placement</button>
+                <button id="btn-break-age" class="px-3 py-1 text-sm border" style="border-color:#247ba0;color:#247ba0;">Age/Gender</button>
+                <button id="btn-break-country" class="px-3 py-1 text-sm border rounded-r" style="border-color:#247ba0;color:#247ba0;">Country</button>
+            </div>
+            <div class="ml-auto flex items-center gap-2 text-sm">
+                <label>Khoảng ngày</label>
+                <select id="date-preset" class="border px-2 py-1 rounded">
+                    <option value="last_7d">7 ngày</option>
+                    <option value="last_30d" selected>30 ngày</option>
+                    <option value="last_90d">90 ngày</option>
+                    <option value="lifetime">Lifetime</option>
+                    <option value="custom">Custom</option>
+                </select>
+                <input type="date" id="since" class="border px-2 py-1 rounded hidden">
+                <span class="hidden" id="range-sep">→</span>
+                <input type="date" id="until" class="border px-2 py-1 rounded hidden">
+                <button id="apply-range" class="px-3 py-1 rounded border hidden" style="border-color:#247ba0;color:#247ba0;">Áp dụng</button>
+            </div>
+        </div>
+        <div class="chart-container" style="height:280px">
+            <canvas id="breakdownChart"></canvas>
+        </div>
+        <div class="mt-6">
+            <h4 class="font-medium mb-2">Ads trong chiến dịch</h4>
+            <div id="creative-list" class="table-responsive"></div>
+        </div>
+    </div>
+</div>

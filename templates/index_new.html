@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block content %}
+    {% include 'components/metric-cards.html' %}
+    {% include 'components/charts-section.html' %}
+    {% include 'components/campaigns-table.html' %}
+    {% include 'components/daily-tracking.html' %}
+    {% include 'components/insights-panel.html' %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Wire buttons and event listeners
+    document.addEventListener('DOMContentLoaded',()=>{
+        let currentCampaign='';
+        const patchView=window.viewInsights;
+        
+        function highlight(kind){
+            const a=document.getElementById('btn-break-placement');
+            const b=document.getElementById('btn-break-age');
+            const c=document.getElementById('btn-break-country');
+            [a,b,c].forEach(x=>{ 
+                if(!x) return; 
+                x.classList.remove('btn-primary','text-white'); 
+                x.style.backgroundColor=''; 
+                x.style.color='#247ba0'; 
+                x.classList.add('border'); 
+            });
+            const map={placement:a,age_gender:b,country:c};
+            const btn=map[kind]; 
+            if(btn){ 
+                btn.classList.remove('border'); 
+                btn.classList.add('btn-primary','text-white'); 
+                btn.style.color='#fff'; 
+            }
+        }
+        
+        function applyFilters(data){
+            const fs=document.getElementById('filter-status').value;
+            const fo=document.getElementById('filter-objective').value;
+            let items=data.campaigns.slice();
+            if(fs!=='ALL') items=items.filter(x=>x.status===fs);
+            if(fo!=='ALL') items=items.filter(x=>x.objective===fo);
+            updateCampaignsTable(items);
+            createCharts(items);
+        }
+        
+        // populate objective options after load
+        const oldLoad=window.loadAdsData;
+        window.loadAdsData=async ()=>{ 
+            await oldLoad(); 
+            if(!adsData||!adsData.campaigns) return; 
+            const sel=document.getElementById('filter-objective'); 
+            const set=[...new Set(adsData.campaigns.map(c=>c.objective))]; 
+            sel.innerHTML='<option value="ALL" selected>Tất cả</option>'+set.map(o=>`<option value="${o}">${o}</option>`).join(''); 
+            applyFilters(adsData); 
+        }
+        
+        document.getElementById('filter-status').onchange=()=>applyFilters(adsData);
+        document.getElementById('filter-objective').onchange=()=>applyFilters(adsData);
+        
+        // Close insights panel
+        document.getElementById('close-insights').addEventListener('click', () => { 
+            document.getElementById('insights-panel').classList.add('hidden'); 
+        });
+        document.getElementById('btn-export-campaigns').onclick=()=>{ 
+            const rows=(adsData?.campaigns||[]).map(c=>({
+                id:c.campaign_id,
+                name:c.campaign_name,
+                status:c.status,
+                objective:c.objective,
+                created:c.created_time,
+                start:c.start_time,
+                stop:c.stop_time
+            })); 
+            const blob=new Blob([toCSV(rows)],{type:'text/csv;charset=utf-8;'}); 
+            const url=URL.createObjectURL(blob); 
+            const a=document.createElement('a'); 
+            a.href=url; 
+            a.download='campaigns.csv'; 
+            a.click(); 
+            URL.revokeObjectURL(url); 
+        };
+        
+        // AI Analysis button
+        document.getElementById('btn-ai-analysis').onclick = () => {
+            if (currentCampaign) {
+                // Disable button during analysis
+                const btn = document.getElementById('btn-ai-analysis');
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = 'Đang phân tích...';
+                
+                performAIAnalysis(currentCampaign).finally(() => {
+                    // Re-enable button
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                });
+            } else {
+                alert('Vui lòng chọn một campaign trước khi phân tích AI');
+            }
+        };
+        
+        window.viewInsights=async (campaignId,status)=>{
+            currentCampaign=campaignId; 
+            resetAIState(); // Reset AI state when viewing new campaign
+            await patchView(campaignId,status);
+            const note=document.getElementById('insights-note'); 
+            if(note){ 
+                note.classList.add('hidden'); 
+                note.textContent=''; 
+            }
+            const load=(kind)=>{ 
+                highlight(kind); 
+                const box=document.getElementById('breakdownChart').parentElement; 
+                box.classList.add('loading-pulse'); 
+                fetchBreakdown(currentCampaign,kind).then(d=>{ 
+                    box.classList.remove('loading-pulse'); 
+                    if(d.token_expired){ 
+                        alert('Access token đã hết hạn. Vui lòng cập nhật USER_TOKEN/.env và reload.'); 
+                        return; 
+                    } 
+                    if(!d.error) renderBreakdown(kind,d.rows||[]); 
+                    else console.warn('Breakdown error', d.error); 
+                }); 
+            };
+            document.getElementById('btn-break-placement').onclick=()=>load('placement');
+            document.getElementById('btn-break-age').onclick=()=>load('age_gender');
+            document.getElementById('btn-break-country').onclick=()=>load('country');
+            document.getElementById('date-preset').onchange=()=>{ 
+                const v=document.getElementById('date-preset').value; 
+                const show=v==='custom'; 
+                ['since','until','range-sep','apply-range'].forEach(id=>{ 
+                    const el=document.getElementById(id); 
+                    if(el){ el.classList.toggle('hidden',!show);} 
+                }); 
+                if(!show){ 
+                    load('placement'); 
+                    fetchAds(currentCampaign).then(d=>{ 
+                        if(!d.error) renderCreatives(d.items||[]); 
+                    }); 
+                } 
+            };
+            document.getElementById('apply-range').onclick=()=>{ 
+                load('placement'); 
+                fetchAds(currentCampaign).then(d=>{ 
+                    if(d.token_expired){ 
+                        alert('Access token đã hết hạn. Vui lòng cập nhật USER_TOKEN/.env và reload.'); 
+                        return; 
+                    } 
+                    if(!d.error) renderCreatives(d.items||[]); 
+                }); 
+            };
+            load('placement');
+            fetchAds(currentCampaign).then(d=>{ 
+                if(d.token_expired){ 
+                    alert('Access token đã hết hạn. Vui lòng cập nhật USER_TOKEN/.env và reload.'); 
+                    return; 
+                } 
+                if(!d.error) renderCreatives(d.items||[]); 
+            })
+        }
+    });
+</script>
+{% endblock %}

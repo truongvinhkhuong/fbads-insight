@@ -1,0 +1,35 @@
+<div class="dashboard-card">
+    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 class="text-lg font-semibold">Danh sách Chiến dịch</h3>
+        <div class="flex items-center gap-2 text-sm">
+            <label>Status</label>
+            <select id="filter-status" class="border px-2 py-1 rounded">
+                <option value="ALL" selected>Tất cả</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="PAUSED">PAUSED</option>
+                <option value="ARCHIVED">ARCHIVED</option>
+            </select>
+            <label class="ml-3">Objective</label>
+            <select id="filter-objective" class="border px-2 py-1 rounded">
+                <option value="ALL" selected>Tất cả</option>
+            </select>
+            <button id="btn-export-campaigns" class="ml-3 px-3 py-1 rounded border" style="border-color:#247ba0;color:#247ba0;">Export CSV</button>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên Chiến dịch</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mục tiêu</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stop</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Insights</th>
+                </tr>
+            </thead>
+            <tbody id="campaigns-table" class="bg-white divide-y divide-gray-200"></tbody>
+        </table>
+    </div>
+</div>

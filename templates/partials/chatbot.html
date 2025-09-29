@@ -1,0 +1,25 @@
+<button id="chatbot-toggle" class="chatbot-toggle text-white rounded-full p-4 shadow-lg btn-primary">
+    Chat
+</button>
+
+<div id="chatbot-container" class="chatbot-container bg-white rounded-lg shadow-lg w-80">
+    <div class="text-white px-4 py-3 rounded-t-lg btn-primary">
+        <h3 class="font-medium">Facebook Ads Assistant</h3>
+        <p class="text-sm opacity-90">Hỏi tôi về dữ liệu quảng cáo</p>
+    </div>
+    <div class="p-4">
+        <div id="chatbot-messages" class="chatbot-messages mb-4">
+            <div class="message bot-message">Xin chào! Hãy hỏi tôi bất kỳ câu hỏi nào.</div>
+        </div>
+        <div class="flex space-x-2">
+            <input type="text" id="chatbot-input" placeholder="Nhập câu hỏi..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none">
+            <button id="chatbot-send" class="px-4 py-2 text-white rounded-md btn-primary">Gửi</button>
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-2">
+            <button class="px-3 py-2 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;" data-suggest="Tóm tắt hiệu suất 7 ngày qua của campaign đang xem">Tóm tắt 7 ngày</button>
+            <button class="px-3 py-2 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;" data-suggest="Tìm ngày có chi tiêu bất thường và giải thích">Tìm outlier</button>
+            <button class="px-3 py-2 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;" data-suggest="Đề xuất 3 hành động để giảm CPM 15% dựa trên dữ liệu">Gợi ý tối ưu</button>
+            <button class="px-3 py-2 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;" data-suggest="Top 3 placement hiệu quả nhất theo impressions và CPC">Top placement</button>
+        </div>
+    </div>
+</div>

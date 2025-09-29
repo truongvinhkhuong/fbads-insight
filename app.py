@@ -343,6 +343,10 @@ def load_ads_data() -> Dict[str, Any]:
 
 @app.route('/')
 def index():
+    return render_template('index_new.html')
+
+@app.route('/old')
+def index_old():
     return render_template('index.html')
 
 @app.route('/api/ads-data')
@@ -760,9 +764,12 @@ def api_daily_tracking():
         # Aggregate data from all campaigns (limit to avoid timeout)
         successful_campaigns = 0
         failed_campaigns = 0
-        max_campaigns = 10  # Limit to prevent timeout
+        max_campaigns = 20  # Increase limit to include more campaigns
         
-        for campaign in campaigns[:max_campaigns]:
+        # Sort campaigns: ACTIVE first, then PAUSED, to prioritize active campaigns
+        sorted_campaigns = sorted(campaigns, key=lambda x: (x.get('status', '') != 'ACTIVE', x.get('campaign_id', '')))
+        
+        for campaign in sorted_campaigns[:max_campaigns]:
             campaign_id = campaign.get('campaign_id')
             if not campaign_id:
                 continue
@@ -784,6 +791,8 @@ def api_daily_tracking():
                 
                 # Get insights data
                 url = f"{base_url}/{campaign_id}/insights"
+                campaign_status = campaign.get('status', 'UNKNOWN')
+                
                 # Request fields including actions for messaging, conversions, and ROAS
                 params = {
                     'access_token': token,
@@ -791,6 +800,9 @@ def api_daily_tracking():
                     'date_preset': date_preset,
                     'time_increment': 1
                 }
+                
+                # For PAUSED campaigns, try with longer date range if initial request fails
+                fallback_presets = ['last_90d', 'lifetime'] if campaign_status == 'PAUSED' else []
                 
                 response = requests.get(url, params=params, timeout=10)
                 if response.status_code == 200:
@@ -805,45 +817,59 @@ def api_daily_tracking():
                         
                         # Log successful campaign processing
                         if successful_campaigns == 1:
-                            logger.info(f"Successfully processed first campaign {campaign_id}")
+                            logger.info(f"Successfully processed first campaign {campaign_id} (status: {campaign_status})")
                     else:
-                        # Try with lifetime data if no data for the period
-                        params_lifetime = params.copy()
-                        params_lifetime['date_preset'] = 'lifetime'
-                        response_lifetime = requests.get(url, params=params_lifetime, timeout=30)
-                        if response_lifetime.status_code == 200:
-                            lifetime_data = response_lifetime.json()
-                            lifetime_rows = lifetime_data.get('data', [])
-                            if lifetime_rows:
-                                all_daily_data.extend(lifetime_rows)
-                                successful_campaigns += 1
-                            else:
-                                failed_campaigns += 1
-                        else:
+                        # Try with fallback presets for campaigns with no data
+                        found_data = False
+                        for fallback_preset in fallback_presets:
+                            params_fallback = params.copy()
+                            params_fallback['date_preset'] = fallback_preset
+                            response_fallback = requests.get(url, params=params_fallback, timeout=30)
+                            if response_fallback.status_code == 200:
+                                fallback_data = response_fallback.json()
+                                fallback_rows = fallback_data.get('data', [])
+                                if fallback_rows:
+                                    # Add budget data to each daily row
+                                    for row in fallback_rows:
+                                        row.update(budget_data)
+                                    all_daily_data.extend(fallback_rows)
+                                    successful_campaigns += 1
+                                    found_data = True
+                                    logger.info(f"Got data for PAUSED campaign {campaign_id} with preset {fallback_preset}")
+                                    break
+                        
+                        if not found_data:
                             failed_campaigns += 1
                 else:
-                    # Try with lifetime data as fallback
-                    params_lifetime = params.copy()
-                    params_lifetime['date_preset'] = 'lifetime'
-                    response_lifetime = requests.get(url, params=params_lifetime, timeout=30)
-                    if response_lifetime.status_code == 200:
-                        lifetime_data = response_lifetime.json()
-                        lifetime_rows = lifetime_data.get('data', [])
-                        if lifetime_rows:
-                            all_daily_data.extend(lifetime_rows)
-                            successful_campaigns += 1
-                        else:
-                            failed_campaigns += 1
-                    else:
+                    # Try with fallback presets for failed requests
+                    found_data = False
+                    for fallback_preset in fallback_presets:
+                        params_fallback = params.copy()
+                        params_fallback['date_preset'] = fallback_preset
+                        response_fallback = requests.get(url, params=params_fallback, timeout=30)
+                        if response_fallback.status_code == 200:
+                            fallback_data = response_fallback.json()
+                            fallback_rows = fallback_data.get('data', [])
+                            if fallback_rows:
+                                # Add budget data to each daily row
+                                for row in fallback_rows:
+                                    row.update(budget_data)
+                                all_daily_data.extend(fallback_rows)
+                                successful_campaigns += 1
+                                found_data = True
+                                logger.info(f"Got fallback data for campaign {campaign_id} (status: {campaign_status}) with preset {fallback_preset}")
+                                break
+                    
+                    if not found_data:
                         failed_campaigns += 1
-                        logger.warning(f"Failed to get insights for campaign {campaign_id}: {response.status_code}")
+                        logger.warning(f"Failed to get insights for campaign {campaign_id} (status: {campaign_status}): {response.status_code}")
                     
             except Exception as e:
                 failed_campaigns += 1
                 logger.warning(f"Error fetching insights for campaign {campaign_id}: {e}")
                 continue
         
-        logger.info(f"Daily tracking: {successful_campaigns} successful, {failed_campaigns} failed campaigns")
+        logger.info(f"Daily tracking: {successful_campaigns} successful, {failed_campaigns} failed campaigns (processed {min(len(campaigns), max_campaigns)} out of {len(campaigns)} total)")
         
         # Group by date and aggregate
         date_groups = {}
