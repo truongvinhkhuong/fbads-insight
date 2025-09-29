@@ -85,6 +85,12 @@
     overflow-x: auto;
 }
 
+/* Fixed-height vertical scroll for tall tables */
+.table-vertical-scroll {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
 .table-sticky {
     position: sticky;
     left: 0;

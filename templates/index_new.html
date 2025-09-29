@@ -167,4 +167,13 @@
         }
     });
 </script>
+<!-- Modal for enlarged pie chart -->
+<div id="pivot-pie-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+  <div class="bg-white rounded-lg shadow-xl max-w-3xl w-11/12 p-4 relative">
+    <button id="pivot-pie-close" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">✕</button>
+    <h3 id="pivot-pie-title" class="text-lg font-semibold mb-3">Biểu đồ</h3>
+    <div class="h-[420px]"><canvas id="pivot-pie-modal-canvas"></canvas></div>
+  </div>
+  
+</div>
 {% endblock %}

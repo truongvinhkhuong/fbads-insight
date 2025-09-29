@@ -117,6 +117,8 @@ function renderPivotAdvancedPies(canvasId, bucket){
         data:{ labels, datasets:[{ data:values, backgroundColor:['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#84cc16'] }] },
         options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'bottom'} } }
     });
+    // click to open modal
+    c.onclick=()=> openPivotPieModal(canvasId, labels, values);
 }
 
 function renderPivotAdvancedDistTable(tbodyId, bucket, firstCol){
@@ -140,6 +142,27 @@ function renderPivotAdvancedDistTable(tbodyId, bucket, firstCol){
         const ctr = (totC/Math.max(totI,1))*100.0;
         tfoot.innerHTML=`<tr class="bg-gray-50 font-medium"><td class="px-2 py-2">Tổng cộng</td><td class="px-2 py-2">${NUM_FMT.format(totI)}</td><td class="px-2 py-2">${NUM_FMT.format(totC)}</td><td class="px-2 py-2">${ctr.toFixed(2)}%</td><td class="px-2 py-2">${NUM_FMT.format(totNew)}</td></tr>`;
     }
+}
+
+function openPivotPieModal(sourceId, labels, values){
+    const modal=document.getElementById('pivot-pie-modal');
+    const title=document.getElementById('pivot-pie-title');
+    const keyMap={ 'pivot-adv-pie-gender':'Phân phối theo giới tính', 'pivot-adv-pie-age':'Phân phối theo độ tuổi', 'pivot-adv-pie-geo':'Phân phối theo vị trí' };
+    title.textContent= keyMap[sourceId] || 'Biểu đồ';
+    const canvas=document.getElementById('pivot-pie-modal-canvas');
+    const ctx=canvas.getContext('2d');
+    if(!window.charts) window.charts={};
+    if(charts.pivotPieModal){ charts.pivotPieModal.destroy(); }
+    charts.pivotPieModal=new Chart(ctx,{
+        type:'doughnut',
+        data:{ labels, datasets:[{ data:values, backgroundColor:['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#84cc16','#f472b6','#22d3ee'] }]},
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'right'} } }
+    });
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    const close=document.getElementById('pivot-pie-close');
+    close.onclick=()=>{ modal.classList.add('hidden'); modal.classList.remove('flex'); };
+    modal.onclick=(e)=>{ if(e.target===modal){ close.click(); } };
 }
 
 
