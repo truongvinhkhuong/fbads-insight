@@ -672,32 +672,49 @@ def api_daily_tracking():
         base_url = 'https://graph.facebook.com/v23.0'
         all_daily_data = []
         
-        # Aggregate data from all campaigns
+        # Aggregate data from all campaigns (limit to avoid timeout)
         successful_campaigns = 0
         failed_campaigns = 0
+        max_campaigns = 10  # Limit to prevent timeout
         
-        for campaign in campaigns:
+        for campaign in campaigns[:max_campaigns]:
             campaign_id = campaign.get('campaign_id')
             if not campaign_id:
                 continue
                 
             try:
+                # Skip budget requests to avoid rate limiting
+                # Budget data will be 0 for now until we implement caching
+                budget_data = {
+                    'daily_budget': 0.0,
+                    'lifetime_budget': 0.0,
+                    'budget_remaining': 0.0
+                }
+                
+                # Get insights data
                 url = f"{base_url}/{campaign_id}/insights"
-                # Start with basic fields that are most likely to be available
+                # Request fields including actions for messaging, conversions, and ROAS
                 params = {
                     'access_token': token,
-                    'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency',
+                    'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency,actions,inline_link_clicks,inline_link_click_ctr,unique_inline_link_clicks',
                     'date_preset': date_preset,
                     'time_increment': 1
                 }
                 
-                response = requests.get(url, params=params, timeout=30)
+                response = requests.get(url, params=params, timeout=10)
                 if response.status_code == 200:
                     data = response.json()
                     daily_rows = data.get('data', [])
                     if daily_rows:
+                        # Add budget data to each daily row
+                        for row in daily_rows:
+                            row.update(budget_data)
                         all_daily_data.extend(daily_rows)
                         successful_campaigns += 1
+                        
+                        # Log successful campaign processing
+                        if successful_campaigns == 1:
+                            logger.info(f"Successfully processed first campaign {campaign_id}")
                     else:
                         # Try with lifetime data if no data for the period
                         params_lifetime = params.copy()
@@ -756,7 +773,10 @@ def api_daily_tracking():
                     'messaging_starts': 0,
                     'purchases': 0,
                     'purchase_value': 0.0,
-                    'campaign_count': 0
+                    'campaign_count': 0,
+                    'budget_remaining': 0.0,
+                    'daily_budget': 0.0,
+                    'lifetime_budget': 0.0
                 }
             
             # Sum numeric fields
@@ -772,24 +792,47 @@ def api_daily_tracking():
             group['messaging_starts'] += int(float(row.get('messaging_starts', 0) or 0))
             group['purchases'] += int(float(row.get('purchases', 0) or 0))
             group['purchase_value'] += float(row.get('purchase_value', 0) or 0)
+            group['budget_remaining'] += float(row.get('budget_remaining', 0) or 0)
+            group['daily_budget'] += float(row.get('daily_budget', 0) or 0)
+            group['lifetime_budget'] += float(row.get('lifetime_budget', 0) or 0)
             group['campaign_count'] += 1
             
-            # Process actions array
+            # Process actions array for messaging, conversions, and engagement
             for action in (row.get('actions') or []):
                 action_type = (action.get('action_type') or '').lower()
                 try:
                     value = int(float(action.get('value', 0) or 0))
                 except Exception:
                     value = 0
+                
+                # Process messaging actions silently
                     
+                # Handle different action types based on actual Facebook API response
+                # Priority: Messaging actions first, then other conversions
                 if action_type == 'post_engagement':
                     group['post_engagement'] += value
                 elif action_type == 'photo_view':
                     group['photo_view'] += value
-                elif action_type == 'messaging_starts':
+                # Messaging actions - check first to avoid conflicts with conversion actions
+                elif (action_type.startswith('onsite_conversion.messaging') or 
+                      action_type == 'messaging_starts' or 
+                      ('messaging' in action_type and 'conversion' in action_type)):
                     group['messaging_starts'] += value
-                elif action_type == 'purchase' or 'purchase' in action_type:
+                # Purchase/Conversion actions - only handle actual purchase actions
+                elif (action_type == 'purchase' or 
+                      action_type == 'offsite_conversion' or 
+                      action_type.startswith('offsite_conversion')):
                     group['purchases'] += value
+                    # For purchase actions, the value might be purchase value
+                    if action_type == 'purchase':
+                        try:
+                            purchase_value = float(action.get('value', 0) or 0)
+                            group['purchase_value'] += purchase_value
+                        except Exception:
+                            pass
+                # Link clicks
+                elif action_type == 'link_click' or action_type == 'landing_page_view':
+                    group['inline_link_clicks'] += value
             
             # Process video actions
             for video_action in (row.get('video_play_actions') or []):
@@ -823,6 +866,13 @@ def api_daily_tracking():
             # Calculate ROAS
             group['roas'] = (group['purchase_value'] / max(group['spend'], 1)) if group['spend'] > 0 else 0.0
             
+            # Calculate budget utilization
+            total_budget = group['daily_budget'] + group['lifetime_budget']
+            if total_budget > 0:
+                group['budget_utilization'] = (group['spend'] / total_budget) * 100
+            else:
+                group['budget_utilization'] = 0.0
+            
             daily_data.append(group)
         
         # Sort by date
@@ -841,6 +891,9 @@ def api_daily_tracking():
             'messaging_starts': sum(d['messaging_starts'] for d in daily_data),
             'purchases': sum(d['purchases'] for d in daily_data),
             'purchase_value': sum(d['purchase_value'] for d in daily_data),
+            'budget_remaining': sum(d['budget_remaining'] for d in daily_data),
+            'daily_budget': sum(d['daily_budget'] for d in daily_data),
+            'lifetime_budget': sum(d['lifetime_budget'] for d in daily_data),
             'total_campaigns': len(campaigns),
             'active_days': len(daily_data)
         }
@@ -866,7 +919,9 @@ def api_daily_tracking():
             'extraction_date': datetime.now().isoformat(),
             'successful_campaigns': successful_campaigns,
             'failed_campaigns': failed_campaigns,
-            'total_campaigns': len(campaigns)
+            'total_campaigns': len(campaigns),
+            'processed_campaigns': min(len(campaigns), max_campaigns),
+            'note': f'Processed {min(len(campaigns), max_campaigns)} out of {len(campaigns)} campaigns to prevent timeout'
         })
         
     except Exception as e:
