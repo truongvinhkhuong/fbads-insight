@@ -6,6 +6,7 @@
     {% include 'components/campaigns-table.html' %}
     {% include 'components/daily-tracking.html' %}
     {% include 'components/pivot-advanced.html' %}
+    {% include 'components/meta-report-insights.html' %}
     {% include 'components/insights-panel.html' %}
 {% endblock %}
 
@@ -16,6 +17,11 @@
         // Initialize daily tracking
         if (typeof initializeDailyTracking === 'function') {
             initializeDailyTracking();
+        }
+        
+        // Initialize meta report insights
+        if (typeof initializeMetaReportInsights === 'function') {
+            initializeMetaReportInsights();
         }
         let currentCampaign='';
         const patchView=window.viewInsights;

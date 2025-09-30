@@ -1,0 +1,145 @@
+<!-- Meta Report Insights Section -->
+<div class="bg-white rounded-lg shadow mt-8 border border-gray-100">
+    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div>
+            <h3 class="text-lg font-semibold">Tracking Meta Report Insight</h3>
+            <p class="text-sm text-gray-600">Mục tiêu: Tracking Performance mỗi tháng - Đo lường hiệu quả xây kênh fanpage, content</p>
+            <p class="text-xs text-gray-500 mt-1">Dimensions: Thương hiệu, Định dạng nội dung, Thời gian</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 text-sm">
+                <label>Khoảng thời gian:</label>
+                <select id="meta-report-date-preset" class="border px-2 py-1 rounded">
+                    <option value="last_30d" selected>30 ngày</option>
+                    <option value="last_90d">90 ngày</option>
+                    <option value="last_180d">180 ngày</option>
+                    <option value="lifetime">Lifetime</option>
+                </select>
+            </div>
+            <button id="btn-refresh-meta-report" class="px-3 py-1 text-white rounded btn-primary text-sm">Cập nhật</button>
+            <button id="btn-export-meta-report" class="px-3 py-1 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;">Export CSV</button>
+            <div class="flex items-center gap-2 text-sm ml-2">
+                <label for="meta-ai-since" class="text-gray-600">Since:</label>
+                <input id="meta-ai-since" type="date" class="border px-2 py-1 rounded" />
+                <label for="meta-ai-until" class="text-gray-600">Until:</label>
+                <input id="meta-ai-until" type="date" class="border px-2 py-1 rounded" />
+                <button id="btn-meta-content-ai" class="px-3 py-1 text-white rounded btn-primary text-sm">AI Content Insight</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Meta Report Summary Cards -->
+    <div class="p-6 border-b border-gray-200">
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div class="meta-report-metric bg-blue-50">
+                <div class="text-xs text-blue-600 font-medium">Tổng thương hiệu</div>
+                <div id="meta-total-brands" class="text-lg font-bold text-blue-800">0</div>
+            </div>
+            <div class="meta-report-metric bg-green-50">
+                <div class="text-xs text-green-600 font-medium">Định dạng nội dung</div>
+                <div id="meta-total-content-formats" class="text-lg font-bold text-green-800">0</div>
+            </div>
+            <div class="meta-report-metric bg-purple-50">
+                <div class="text-xs text-purple-600 font-medium">Tổng chi tiêu</div>
+                <div id="meta-total-spend" class="text-lg font-bold text-purple-800">$0</div>
+            </div>
+            <div class="meta-report-metric bg-orange-50">
+                <div class="text-xs text-orange-600 font-medium">Tổng Reach</div>
+                <div id="meta-total-reach" class="text-lg font-bold text-orange-800">0</div>
+            </div>
+            <div class="meta-report-metric bg-red-50">
+                <div class="text-xs text-red-600 font-medium">Tổng Engagement</div>
+                <div id="meta-total-engagement" class="text-lg font-bold text-red-800">0</div>
+            </div>
+            <div class="meta-report-metric bg-indigo-50">
+                <div class="text-xs text-indigo-600 font-medium">CTR Trung bình</div>
+                <div id="meta-avg-ctr" class="text-lg font-bold text-indigo-800">0%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Performance Table -->
+    <div class="overflow-x-auto meta-report-table">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-50 sticky top-0">
+                <tr>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">Tháng</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thương hiệu</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Định dạng nội dung</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chiến dịch</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chi tiêu</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Impressions</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clicks</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CTR</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPC</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement Rate</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Video Views</th>
+                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Link Clicks</th>
+                </tr>
+            </thead>
+            <tbody id="meta-report-table" class="bg-white divide-y divide-gray-200">
+                <tr>
+                    <td colspan="14" class="px-6 py-4 text-center text-gray-500">Đang tải dữ liệu...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Brand Analysis Section -->
+    <div class="p-6 border-t border-gray-200">
+        <h4 class="text-lg font-semibold mb-4 text-gray-800">Phân tích theo Thương hiệu</h4>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+                <h5 class="text-sm font-medium text-gray-700 mb-3">Top Thương hiệu theo Chi tiêu</h5>
+                <div id="brand-analysis-list" class="space-y-2">
+                    <!-- Brand analysis will be populated here -->
+                </div>
+            </div>
+            <div>
+                <h5 class="text-sm font-medium text-gray-700 mb-3">Biểu đồ Thương hiệu</h5>
+                <div class="h-64 meta-report-chart-container">
+                    <canvas id="brand-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Content Format Analysis Section -->
+    <div class="p-6 border-t border-gray-200">
+        <h4 class="text-lg font-semibold mb-4 text-gray-800">Phân tích theo Định dạng Nội dung</h4>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+                <h5 class="text-sm font-medium text-gray-700 mb-3">Top Định dạng theo Performance Score</h5>
+                <div id="content-analysis-list" class="space-y-2">
+                    <!-- Content analysis will be populated here -->
+                </div>
+            </div>
+            <div>
+                <h5 class="text-sm font-medium text-gray-700 mb-3">Biểu đồ Định dạng Nội dung</h5>
+                <div class="h-64 meta-report-chart-container">
+                    <canvas id="content-format-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Monthly Trends Chart -->
+    <div class="p-6 border-t border-gray-200">
+        <h4 class="text-lg font-semibold mb-4 text-gray-800">Xu hướng Hiệu suất theo Tháng</h4>
+        <div class="h-80 meta-report-chart-container">
+            <canvas id="monthly-trends-chart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Content Insights (AI) -->
+    <div class="p-6 border-t border-gray-200">
+        <h4 class="text-lg font-semibold mb-4 text-gray-800">AI Content Insights (theo Page Posts)</h4>
+        <div id="meta-ai-content" class="meta-report-card whitespace-pre-wrap text-sm"></div>
+        <div class="mt-4">
+            <h5 class="text-sm font-medium text-gray-700 mb-3">Bài viết tiêu biểu</h5>
+            <div id="meta-ai-posts" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+    </div>
+</div>

@@ -286,6 +286,135 @@
             </div>
         </div>
 
+        <!-- Meta Report Insights Section -->
+        <div class="bg-white rounded-lg shadow mt-8 border border-gray-100">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold">Tracking Meta Report Insight</h3>
+                    <p class="text-sm text-gray-600">Mục tiêu: Tracking Performance mỗi tháng - Đo lường hiệu quả xây kênh fanpage, content</p>
+                    <p class="text-xs text-gray-500 mt-1">Dimensions: Thương hiệu, Định dạng nội dung, Thời gian</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 text-sm">
+                        <label>Khoảng thời gian:</label>
+                        <select id="meta-report-date-preset" class="border px-2 py-1 rounded">
+                            <option value="last_30d" selected>30 ngày</option>
+                            <option value="last_90d">90 ngày</option>
+                            <option value="last_180d">180 ngày</option>
+                            <option value="lifetime">Lifetime</option>
+                        </select>
+                    </div>
+                    <button id="btn-refresh-meta-report" class="px-3 py-1 text-white rounded btn-primary text-sm">Cập nhật</button>
+                    <button id="btn-export-meta-report" class="px-3 py-1 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;">Export CSV</button>
+                </div>
+            </div>
+            
+            <!-- Meta Report Summary Cards -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    <div class="meta-report-metric bg-blue-50">
+                        <div class="text-xs text-blue-600 font-medium">Tổng thương hiệu</div>
+                        <div id="meta-total-brands" class="text-lg font-bold text-blue-800">0</div>
+                    </div>
+                    <div class="meta-report-metric bg-green-50">
+                        <div class="text-xs text-green-600 font-medium">Định dạng nội dung</div>
+                        <div id="meta-total-content-formats" class="text-lg font-bold text-green-800">0</div>
+                    </div>
+                    <div class="meta-report-metric bg-purple-50">
+                        <div class="text-xs text-purple-600 font-medium">Tổng chi tiêu</div>
+                        <div id="meta-total-spend" class="text-lg font-bold text-purple-800">$0</div>
+                    </div>
+                    <div class="meta-report-metric bg-orange-50">
+                        <div class="text-xs text-orange-600 font-medium">Tổng Reach</div>
+                        <div id="meta-total-reach" class="text-lg font-bold text-orange-800">0</div>
+                    </div>
+                    <div class="meta-report-metric bg-red-50">
+                        <div class="text-xs text-red-600 font-medium">Tổng Engagement</div>
+                        <div id="meta-total-engagement" class="text-lg font-bold text-red-800">0</div>
+                    </div>
+                    <div class="meta-report-metric bg-indigo-50">
+                        <div class="text-xs text-indigo-600 font-medium">CTR Trung bình</div>
+                        <div id="meta-avg-ctr" class="text-lg font-bold text-indigo-800">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Performance Table -->
+            <div class="overflow-x-auto meta-report-table">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">Tháng</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thương hiệu</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Định dạng nội dung</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chiến dịch</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chi tiêu</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Impressions</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clicks</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CTR</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPC</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement Rate</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Video Views</th>
+                            <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Link Clicks</th>
+                        </tr>
+                    </thead>
+                    <tbody id="meta-report-table" class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="14" class="px-6 py-4 text-center text-gray-500">Đang tải dữ liệu...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Brand Analysis Section -->
+            <div class="p-6 border-t border-gray-200">
+                <h4 class="text-lg font-semibold mb-4 text-gray-800">Phân tích theo Thương hiệu</h4>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h5 class="text-sm font-medium text-gray-700 mb-3">Top Thương hiệu theo Chi tiêu</h5>
+                        <div id="brand-analysis-list" class="space-y-2">
+                            <!-- Brand analysis will be populated here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h5 class="text-sm font-medium text-gray-700 mb-3">Biểu đồ Thương hiệu</h5>
+                        <div class="h-64 meta-report-chart-container">
+                            <canvas id="brand-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content Format Analysis Section -->
+            <div class="p-6 border-t border-gray-200">
+                <h4 class="text-lg font-semibold mb-4 text-gray-800">Phân tích theo Định dạng Nội dung</h4>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h5 class="text-sm font-medium text-gray-700 mb-3">Top Định dạng theo Performance Score</h5>
+                        <div id="content-analysis-list" class="space-y-2">
+                            <!-- Content analysis will be populated here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h5 class="text-sm font-medium text-gray-700 mb-3">Biểu đồ Định dạng Nội dung</h5>
+                        <div class="h-64 meta-report-chart-container">
+                            <canvas id="content-format-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Monthly Trends Chart -->
+            <div class="p-6 border-t border-gray-200">
+                <h4 class="text-lg font-semibold mb-4 text-gray-800">Xu hướng Hiệu suất theo Tháng</h4>
+                <div class="h-80 meta-report-chart-container">
+                    <canvas id="monthly-trends-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
         <div class="bg-white rounded-lg shadow mt-8 hidden border border-gray-100" id="insights-panel">
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <h3 class="text-lg font-semibold">Insights Chiến dịch</h3>
@@ -480,6 +609,7 @@
             loadAdsData();
             initializeChatbot();
             initializeDailyTracking();
+            initializeMetaReportInsights();
         });
 
         async function loadAdsData() {
@@ -1315,6 +1445,386 @@
             const a = document.createElement('a');
             a.href = url;
             a.download = `daily-tracking-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Meta Report Insights Functions
+        let metaReportData = null;
+
+        function initializeMetaReportInsights() {
+            // Load initial data
+            loadMetaReportData();
+            
+            // Event listeners
+            document.getElementById('btn-refresh-meta-report').addEventListener('click', loadMetaReportData);
+            document.getElementById('btn-export-meta-report').addEventListener('click', exportMetaReportData);
+            document.getElementById('meta-report-date-preset').addEventListener('change', loadMetaReportData);
+        }
+
+        async function loadMetaReportData() {
+            try {
+                const preset = document.getElementById('meta-report-date-preset').value;
+                const tbody = document.getElementById('meta-report-table');
+                tbody.innerHTML = '<tr><td colspan="14" class="px-6 py-4 text-center text-gray-500">Đang tải dữ liệu...</td></tr>';
+                
+                const response = await fetch(`/api/meta-report-insights?date_preset=${encodeURIComponent(preset)}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Meta Report Insights error:', data.error);
+                    let errorMessage = data.error;
+                    if (typeof data.error === 'object' && data.error.message) {
+                        errorMessage = data.error.message;
+                    }
+                    
+                    tbody.innerHTML = `<tr><td colspan="14" class="px-6 py-4 text-center text-red-500">Lỗi: ${errorMessage}</td></tr>`;
+                    return;
+                }
+                
+                metaReportData = data;
+                updateMetaReportTable(data);
+                updateMetaReportSummaryCards(data);
+                updateBrandAnalysis(data);
+                updateContentAnalysis(data);
+                createMetaReportCharts(data);
+                
+            } catch (error) {
+                console.error('Error loading meta report data:', error);
+                const tbody = document.getElementById('meta-report-table');
+                tbody.innerHTML = '<tr><td colspan="14" class="px-6 py-4 text-center text-red-500">Lỗi kết nối khi tải dữ liệu</td></tr>';
+            }
+        }
+
+        function updateMetaReportTable(data) {
+            const tbody = document.getElementById('meta-report-table');
+            tbody.innerHTML = '';
+            
+            if (!data.monthly_data || data.monthly_data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="14" class="px-6 py-4 text-center text-gray-500">Không có dữ liệu</td></tr>';
+                return;
+            }
+            
+            data.monthly_data.forEach(month => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                
+                // Calculate metrics
+                const spend = parseFloat(month.spend || 0);
+                const reach = parseInt(month.reach || 0);
+                const impressions = parseInt(month.impressions || 0);
+                const clicks = parseInt(month.clicks || 0);
+                const engagement = parseInt(month.engagement || 0);
+                const videoViews = parseInt(month.video_views || 0);
+                const linkClicks = parseInt(month.link_clicks || 0);
+                
+                // Calculate derived metrics
+                const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+                const cpc = clicks > 0 ? spend / clicks : 0;
+                const engagementRate = impressions > 0 ? (engagement / impressions) * 100 : 0;
+                
+                // Format brands and content formats
+                const brandsText = month.brands ? month.brands.join(', ') : 'Unknown';
+                const contentFormatsText = month.content_formats ? month.content_formats.join(', ') : 'Unknown';
+                
+                row.innerHTML = `
+                    <td class="px-2 py-3 whitespace-nowrap text-sm font-medium text-gray-900 sticky left-0 bg-white">
+                        ${month.month}
+                    </td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-500">${brandsText}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-500">${contentFormatsText}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${month.campaign_count}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">${VND_FMT.format(spend)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(reach)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(impressions)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(clicks)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${ctr.toFixed(2)}%</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${VND_FMT.format(cpc)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(engagement)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${engagementRate.toFixed(2)}%</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(videoViews)}</td>
+                    <td class="px-2 py-3 whitespace-nowrap text-sm text-gray-900">${NUM_FMT.format(linkClicks)}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateMetaReportSummaryCards(data) {
+            if (!data.monthly_data || data.monthly_data.length === 0) return;
+            
+            // Calculate totals
+            let totalBrands = 0;
+            let totalContentFormats = 0;
+            let totalSpend = 0;
+            let totalReach = 0;
+            let totalEngagement = 0;
+            let totalClicks = 0;
+            let totalImpressions = 0;
+            
+            const allBrands = new Set();
+            const allContentFormats = new Set();
+            
+            data.monthly_data.forEach(month => {
+                totalSpend += parseFloat(month.spend || 0);
+                totalReach += parseInt(month.reach || 0);
+                totalEngagement += parseInt(month.engagement || 0);
+                totalClicks += parseInt(month.clicks || 0);
+                totalImpressions += parseInt(month.impressions || 0);
+                
+                if (month.brands) {
+                    month.brands.forEach(brand => allBrands.add(brand));
+                }
+                if (month.content_formats) {
+                    month.content_formats.forEach(format => allContentFormats.add(format));
+                }
+            });
+            
+            totalBrands = allBrands.size;
+            totalContentFormats = allContentFormats.size;
+            
+            const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+            
+            // Update summary cards
+            document.getElementById('meta-total-brands').textContent = totalBrands;
+            document.getElementById('meta-total-content-formats').textContent = totalContentFormats;
+            document.getElementById('meta-total-spend').textContent = VND_FMT.format(totalSpend);
+            document.getElementById('meta-total-reach').textContent = NUM_FMT.format(totalReach);
+            document.getElementById('meta-total-engagement').textContent = NUM_FMT.format(totalEngagement);
+            document.getElementById('meta-avg-ctr').textContent = avgCtr.toFixed(2) + '%';
+        }
+
+        function updateBrandAnalysis(data) {
+            const brandList = document.getElementById('brand-analysis-list');
+            brandList.innerHTML = '';
+            
+            if (!data.brand_analysis) return;
+            
+            Object.entries(data.brand_analysis).forEach(([brand, analysis]) => {
+                const div = document.createElement('div');
+                div.className = 'meta-report-analysis-item';
+                
+                const spend = parseFloat(analysis.total_spend || 0);
+                const impressions = parseInt(analysis.total_impressions || 0);
+                const clicks = parseInt(analysis.total_clicks || 0);
+                const engagement = parseInt(analysis.total_engagement || 0);
+                
+                const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+                const engagementRate = impressions > 0 ? (engagement / impressions) * 100 : 0;
+                
+                div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-medium text-gray-900">${brand}</div>
+                            <div class="text-xs text-gray-500">${analysis.campaign_count} campaigns</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-medium text-gray-900">${VND_FMT.format(spend)}</div>
+                            <div class="text-xs text-gray-500">CTR: ${ctr.toFixed(2)}%</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-600">
+                        Reach: ${NUM_FMT.format(impressions)} | Engagement: ${NUM_FMT.format(engagement)} (${engagementRate.toFixed(2)}%)
+                    </div>
+                `;
+                
+                brandList.appendChild(div);
+            });
+        }
+
+        function updateContentAnalysis(data) {
+            const contentList = document.getElementById('content-analysis-list');
+            contentList.innerHTML = '';
+            
+            if (!data.content_analysis) return;
+            
+            Object.entries(data.content_analysis).forEach(([format, analysis]) => {
+                const div = document.createElement('div');
+                div.className = 'meta-report-analysis-item';
+                
+                const spend = parseFloat(analysis.total_spend || 0);
+                const impressions = parseInt(analysis.total_impressions || 0);
+                const clicks = parseInt(analysis.total_clicks || 0);
+                const engagement = parseInt(analysis.total_engagement || 0);
+                const performanceScore = parseFloat(analysis.performance_score || 0);
+                
+                const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+                const engagementRate = impressions > 0 ? (engagement / impressions) * 100 : 0;
+                
+                div.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-medium text-gray-900">${format}</div>
+                            <div class="text-xs text-gray-500">${analysis.campaign_count} campaigns</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-medium text-gray-900">Score: ${performanceScore.toFixed(2)}</div>
+                            <div class="text-xs text-gray-500">CTR: ${ctr.toFixed(2)}%</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-600">
+                        Spend: ${VND_FMT.format(spend)} | Engagement: ${NUM_FMT.format(engagement)} (${engagementRate.toFixed(2)}%)
+                    </div>
+                `;
+                
+                contentList.appendChild(div);
+            });
+        }
+
+        function createMetaReportCharts(data) {
+            // Brand Chart
+            if (data.brand_analysis) {
+                const brandCtx = document.getElementById('brand-chart').getContext('2d');
+                charts.brand && charts.brand.destroy();
+                
+                const brandEntries = Object.entries(data.brand_analysis).slice(0, 10);
+                const brandLabels = brandEntries.map(([brand]) => brand);
+                const brandSpend = brandEntries.map(([, analysis]) => parseFloat(analysis.total_spend || 0));
+                
+                charts.brand = new Chart(brandCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: brandLabels,
+                        datasets: [{
+                            label: 'Chi tiêu',
+                            data: brandSpend,
+                            backgroundColor: '#247ba0'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+            }
+            
+            // Content Format Chart
+            if (data.content_analysis) {
+                const contentCtx = document.getElementById('content-format-chart').getContext('2d');
+                charts.contentFormat && charts.contentFormat.destroy();
+                
+                const contentEntries = Object.entries(data.content_analysis).slice(0, 10);
+                const contentLabels = contentEntries.map(([format]) => format);
+                const contentScores = contentEntries.map(([, analysis]) => parseFloat(analysis.performance_score || 0));
+                
+                charts.contentFormat = new Chart(contentCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: contentLabels,
+                        datasets: [{
+                            data: contentScores,
+                            backgroundColor: ['#247ba0', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+            }
+            
+            // Monthly Trends Chart
+            if (data.monthly_data && data.monthly_data.length > 0) {
+                const trendsCtx = document.getElementById('monthly-trends-chart').getContext('2d');
+                charts.monthlyTrends && charts.monthlyTrends.destroy();
+                
+                const months = data.monthly_data.map(month => month.month);
+                const spendData = data.monthly_data.map(month => parseFloat(month.spend || 0));
+                const reachData = data.monthly_data.map(month => parseInt(month.reach || 0));
+                const engagementData = data.monthly_data.map(month => parseInt(month.engagement || 0));
+                
+                charts.monthlyTrends = new Chart(trendsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: months,
+                        datasets: [
+                            {
+                                label: 'Chi tiêu',
+                                data: spendData,
+                                borderColor: '#247ba0',
+                                backgroundColor: 'rgba(36,123,160,0.1)',
+                                tension: 0.3,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'Reach',
+                                data: reachData,
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16,185,129,0.1)',
+                                tension: 0.3,
+                                yAxisID: 'y1'
+                            },
+                            {
+                                label: 'Engagement',
+                                data: engagementData,
+                                borderColor: '#f59e0b',
+                                backgroundColor: 'rgba(245,158,11,0.1)',
+                                tension: 0.3,
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { type: 'linear', display: true, position: 'left' },
+                            y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false } }
+                        }
+                    }
+                });
+            }
+        }
+
+        function exportMetaReportData() {
+            if (!metaReportData || !metaReportData.monthly_data) {
+                alert('Không có dữ liệu để export');
+                return;
+            }
+            
+            const rows = metaReportData.monthly_data.map(month => {
+                const spend = parseFloat(month.spend || 0);
+                const reach = parseInt(month.reach || 0);
+                const impressions = parseInt(month.impressions || 0);
+                const clicks = parseInt(month.clicks || 0);
+                const engagement = parseInt(month.engagement || 0);
+                const videoViews = parseInt(month.video_views || 0);
+                const linkClicks = parseInt(month.link_clicks || 0);
+                
+                const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+                const cpc = clicks > 0 ? spend / clicks : 0;
+                const engagementRate = impressions > 0 ? (engagement / impressions) * 100 : 0;
+                
+                return {
+                    'Tháng': month.month,
+                    'Thương hiệu': month.brands ? month.brands.join(', ') : 'Unknown',
+                    'Định dạng nội dung': month.content_formats ? month.content_formats.join(', ') : 'Unknown',
+                    'Chiến dịch': month.campaign_count,
+                    'Chi tiêu': spend,
+                    'Reach': reach,
+                    'Impressions': impressions,
+                    'Clicks': clicks,
+                    'CTR': ctr,
+                    'CPC': cpc,
+                    'Engagement': engagement,
+                    'Engagement Rate': engagementRate,
+                    'Video Views': videoViews,
+                    'Link Clicks': linkClicks
+                };
+            });
+            
+            const csv = toCSV(rows);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `meta-report-insights-${new Date().toISOString().split('T')[0]}.csv`;
             a.click();
             URL.revokeObjectURL(url);
         }

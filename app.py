@@ -221,6 +221,61 @@ class OpenAIChatbot:
                 'cached': False
             }
     
+    def analyze_posts_content(self, posts: list) -> Dict[str, Any]:
+        """Phân tích danh sách bài viết Facebook để rút ra insights và đề xuất angles tháng tới."""
+        if not self.api_key:
+            logger.warning("OPENAI_API_KEY không được cấu hình")
+            return {
+                'insights': 'OPENAI_API_KEY chưa được cấu hình.',
+                'angles': []
+            }
+
+        compact_posts = []
+        for p in posts[:30]:  # giới hạn ngữ cảnh cho ổn định
+            compact_posts.append({
+                'id': p.get('id'),
+                'created_time': p.get('created_time'),
+                'message': (p.get('message') or '')[:2000],
+                'permalink_url': p.get('permalink_url')
+            })
+
+        system_prompt = (
+            "Bạn là chuyên gia nội dung Facebook. Phân tích danh sách bài viết (message + thời gian) để rút ra: \n"
+            "1) Chủ đề/insight khách hàng đang quan tâm; 2) Top dạng nội dung/giọng điệu hiệu quả; \n"
+            "3) Cấu trúc bài hiệu quả (mở, thân, CTA); 4) Lỗi thường gặp làm CTR thấp; \n"
+            "5) Gợi ý 5-8 angles cho tháng tới (tiêu đề + mô tả ngắn + CTA). \n"
+            "Trình bày ngắn gọn, có bullet rõ ràng, tập trung actionable."
+        )
+
+        user_prompt = (
+            "Dưới đây là danh sách bài viết gần đây (rút gọn). Hãy phân tích và đưa ra đề xuất như yêu cầu ở trên.\n\n"
+            f"Posts JSON (rút gọn):\n{json.dumps(compact_posts, ensure_ascii=False, indent=2)}\n"
+        )
+
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
+        payload = {
+            'model': os.getenv('OPENAI_CHAT_MODEL', 'gpt-4o-mini'),
+            'messages': [
+                { 'role': 'system', 'content': system_prompt },
+                { 'role': 'user', 'content': user_prompt }
+            ],
+            'temperature': 0.2
+        }
+
+        try:
+            res = requests.post(self.api_url, headers=headers, json=payload, timeout=60)
+            res.raise_for_status()
+            data = res.json()
+            content = data['choices'][0]['message']['content'] if data.get('choices') else ''
+            logger.info("OpenAI content insights generated")
+            return { 'insights': content, 'angles': [] }
+        except Exception as e:
+            logger.error(f"Lỗi AI phân tích bài viết: {e}")
+            return { 'insights': f'Lỗi AI: {str(e)}', 'angles': [] }
+    
     def _optimize_data_for_ai(self, campaign_data: Dict[str, Any]) -> Dict[str, Any]:
         summary = campaign_data.get('summary_metrics', {})
         daily_trends = campaign_data.get('daily_trends', [])
@@ -1259,6 +1314,403 @@ def api_campaign_ai_insights():
     except Exception as e:
         logger.error(f"Lỗi /api/campaign-ai-insights: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/meta-report-insights')
+def api_meta_report_insights():
+    """
+    Meta Report Insights API - Tracking performance monthly
+    Dimensions: Brand, Content Format, Time
+    """
+    try:
+        date_preset = request.args.get('date_preset', 'last_30d').strip()
+        token = get_access_token()
+        
+        if not token:
+            return jsonify({'error': 'Missing access token'}), 500
+        
+        # Get all campaigns from ads_data.json
+        ads_data = load_ads_data()
+        if ads_data.get('error'):
+            return jsonify({'error': ads_data['error']}), 500
+        
+        campaigns = ads_data.get('campaigns', [])
+        if not campaigns:
+            return jsonify({'error': 'No campaigns found', 'monthly_data': [], 'brand_analysis': {}, 'content_analysis': {}})
+        
+        base_url = 'https://graph.facebook.com/v23.0'
+        
+        # Initialize analysis data structures
+        monthly_data = []
+        brand_analysis = {}
+        content_analysis = {}
+        
+        # Process campaigns for monthly insights
+        successful_campaigns = 0
+        failed_campaigns = 0
+        max_campaigns = 15  # Limit to prevent timeout
+        
+        logger.info(f"Processing {min(len(campaigns), max_campaigns)} campaigns for Meta Report Insights")
+        
+        for campaign in campaigns[:max_campaigns]:
+            campaign_id = campaign.get('campaign_id')
+            if not campaign_id:
+                continue
+                
+            try:
+                # Get insights data for the campaign
+                url = f"{base_url}/{campaign_id}/insights"
+                params = {
+                    'access_token': token,
+                    'fields': 'impressions,clicks,spend,ctr,cpc,cpm,reach,actions',
+                    'date_preset': date_preset,
+                    'time_increment': 1
+                }
+                
+                response = requests.get(url, params=params, timeout=10)
+                logger.info(f"Campaign {campaign_id}: Status {response.status_code}")
+                if response.status_code != 200:
+                    logger.error(f"Campaign {campaign_id} error: {response.text}")
+                if response.status_code == 200:
+                    data = response.json()
+                    daily_rows = data.get('data', [])
+                    logger.info(f"Campaign {campaign_id}: Got {len(daily_rows)} daily rows")
+                    
+                    if daily_rows:
+                        # Process daily data for monthly aggregation
+                        for row in daily_rows:
+                            date_key = row.get('date_start') or row.get('date') or row.get('date_stop') or 'unknown'
+                            month_key = date_key[:7]  # YYYY-MM format
+                            
+                            # Find existing month data or create new
+                            month_data = next((m for m in monthly_data if m['month'] == month_key), None)
+                            if not month_data:
+                                month_data = {
+                                    'month': month_key,
+                                    'campaigns': set(),
+                                    'brands': set(),
+                                    'content_formats': set(),
+                                    'impressions': 0,
+                                    'clicks': 0,
+                                    'spend': 0.0,
+                                    'reach': 0,
+                                    'engagement': 0,
+                                    'video_views': 0,
+                                    'photo_views': 0,
+                                    'link_clicks': 0
+                                }
+                                monthly_data.append(month_data)
+                            if month_data:
+                                # Extract brand from campaign name (simplified)
+                                campaign_name = campaign.get('campaign_name', '')
+                                brand = extract_brand_from_campaign_name(campaign_name)
+                                content_format = extract_content_format_from_campaign_name(campaign_name)
+                                
+                                # Add to sets
+                                month_data['campaigns'].add(campaign_id)
+                                month_data['brands'].add(brand)
+                                month_data['content_formats'].add(content_format)
+                                
+                                # Aggregate metrics
+                                month_data['impressions'] += int(float(row.get('impressions', 0) or 0))
+                                month_data['clicks'] += int(float(row.get('clicks', 0) or 0))
+                                month_data['spend'] += float(row.get('spend', 0) or 0)
+                                month_data['reach'] += int(float(row.get('reach', 0) or 0))
+                                month_data['link_clicks'] += int(float(row.get('inline_link_clicks', 0) or 0))
+                                
+                                # Process actions for engagement metrics
+                                for action in (row.get('actions') or []):
+                                    action_type = (action.get('action_type') or '').lower()
+                                    try:
+                                        value = int(float(action.get('value', 0) or 0))
+                                    except Exception:
+                                        value = 0
+                                    
+                                    if action_type == 'post_engagement':
+                                        month_data['engagement'] += value
+                                    elif action_type == 'photo_view':
+                                        month_data['photo_views'] += value
+                                
+                                # Process video actions
+                                for video_action in (row.get('video_play_actions') or []):
+                                    try:
+                                        month_data['video_views'] += int(float(video_action.get('value', 0) or 0))
+                                    except Exception:
+                                        continue
+                                
+                                # Update brand analysis
+                                if brand not in brand_analysis:
+                                    brand_analysis[brand] = {
+                                        'campaigns': set(),
+                                        'total_impressions': 0,
+                                        'total_clicks': 0,
+                                        'total_spend': 0.0,
+                                        'total_engagement': 0,
+                                        'content_formats': set()
+                                    }
+                                
+                                brand_analysis[brand]['campaigns'].add(campaign_id)
+                                brand_analysis[brand]['total_impressions'] += int(float(row.get('impressions', 0) or 0))
+                                brand_analysis[brand]['total_clicks'] += int(float(row.get('clicks', 0) or 0))
+                                brand_analysis[brand]['total_spend'] += float(row.get('spend', 0) or 0)
+                                brand_analysis[brand]['content_formats'].add(content_format)
+                                
+                                # Process engagement for brand analysis
+                                for action in (row.get('actions') or []):
+                                    action_type = (action.get('action_type') or '').lower()
+                                    try:
+                                        value = int(float(action.get('value', 0) or 0))
+                                    except Exception:
+                                        value = 0
+                                    
+                                    if action_type == 'post_engagement':
+                                        brand_analysis[brand]['total_engagement'] += value
+                                
+                                # Update content format analysis
+                                if content_format not in content_analysis:
+                                    content_analysis[content_format] = {
+                                        'campaigns': set(),
+                                        'brands': set(),
+                                        'total_impressions': 0,
+                                        'total_clicks': 0,
+                                        'total_spend': 0.0,
+                                        'total_engagement': 0,
+                                        'performance_score': 0.0
+                                    }
+                                
+                                content_analysis[content_format]['campaigns'].add(campaign_id)
+                                content_analysis[content_format]['brands'].add(brand)
+                                content_analysis[content_format]['total_impressions'] += int(float(row.get('impressions', 0) or 0))
+                                content_analysis[content_format]['total_clicks'] += int(float(row.get('clicks', 0) or 0))
+                                content_analysis[content_format]['total_spend'] += float(row.get('spend', 0) or 0)
+                                
+                                # Process engagement for content analysis
+                                for action in (row.get('actions') or []):
+                                    action_type = (action.get('action_type') or '').lower()
+                                    try:
+                                        value = int(float(action.get('value', 0) or 0))
+                                    except Exception:
+                                        value = 0
+                                    
+                                    if action_type == 'post_engagement':
+                                        content_analysis[content_format]['total_engagement'] += value
+                        
+                        successful_campaigns += 1
+                    else:
+                        failed_campaigns += 1
+                else:
+                    failed_campaigns += 1
+                    logger.warning(f"Failed to get insights for campaign {campaign_id}: {response.status_code}")
+                    
+            except Exception as e:
+                failed_campaigns += 1
+                logger.warning(f"Error fetching insights for campaign {campaign_id}: {e}")
+                continue
+        
+        # Convert sets to counts and calculate derived metrics
+        for month_data in monthly_data:
+            month_data['campaign_count'] = len(month_data['campaigns'])
+            month_data['brand_count'] = len(month_data['brands'])
+            month_data['content_format_count'] = len(month_data['content_formats'])
+            month_data['ctr'] = (month_data['clicks'] / max(month_data['impressions'], 1)) * 100
+            month_data['cpc'] = month_data['spend'] / max(month_data['clicks'], 1) if month_data['clicks'] > 0 else 0
+            month_data['cpm'] = (month_data['spend'] / max(month_data['impressions'], 1)) * 1000 if month_data['impressions'] > 0 else 0
+            month_data['engagement_rate'] = (month_data['engagement'] / max(month_data['impressions'], 1)) * 100 if month_data['impressions'] > 0 else 0
+            
+            # Convert sets to lists for JSON serialization
+            month_data['campaigns'] = list(month_data['campaigns'])
+            month_data['brands'] = list(month_data['brands'])
+            month_data['content_formats'] = list(month_data['content_formats'])
+        
+        # Process brand analysis
+        for brand, data in brand_analysis.items():
+            data['campaign_count'] = len(data['campaigns'])
+            data['content_format_count'] = len(data['content_formats'])
+            data['ctr'] = (data['total_clicks'] / max(data['total_impressions'], 1)) * 100
+            data['cpc'] = data['total_spend'] / max(data['total_clicks'], 1) if data['total_clicks'] > 0 else 0
+            data['cpm'] = (data['total_spend'] / max(data['total_impressions'], 1)) * 1000 if data['total_impressions'] > 0 else 0
+            data['engagement_rate'] = (data['total_engagement'] / max(data['total_impressions'], 1)) * 100 if data['total_impressions'] > 0 else 0
+            
+            # Convert sets to lists
+            data['campaigns'] = list(data['campaigns'])
+            data['content_formats'] = list(data['content_formats'])
+        
+        # Process content format analysis
+        for content_format, data in content_analysis.items():
+            data['campaign_count'] = len(data['campaigns'])
+            data['brand_count'] = len(data['brands'])
+            data['ctr'] = (data['total_clicks'] / max(data['total_impressions'], 1)) * 100
+            data['cpc'] = data['total_spend'] / max(data['total_clicks'], 1) if data['total_clicks'] > 0 else 0
+            data['cpm'] = (data['total_spend'] / max(data['total_impressions'], 1)) * 1000 if data['total_impressions'] > 0 else 0
+            data['engagement_rate'] = (data['total_engagement'] / max(data['total_impressions'], 1)) * 100 if data['total_impressions'] > 0 else 0
+            
+            # Calculate performance score (CTR + Engagement Rate - CPC/1000)
+            data['performance_score'] = data['ctr'] + data['engagement_rate'] - (data['cpc'] / 1000)
+            
+            # Convert sets to lists
+            data['campaigns'] = list(data['campaigns'])
+            data['brands'] = list(data['brands'])
+        
+        # Sort monthly data by month
+        monthly_data.sort(key=lambda x: x['month'])
+        
+        # Sort brand analysis by total spend
+        sorted_brand_analysis = dict(sorted(brand_analysis.items(), key=lambda x: x[1]['total_spend'], reverse=True))
+        
+        # Sort content analysis by performance score
+        sorted_content_analysis = dict(sorted(content_analysis.items(), key=lambda x: x[1]['performance_score'], reverse=True))
+        
+        logger.info(f"Meta Report Insights: {successful_campaigns} successful, {failed_campaigns} failed campaigns")
+        
+        return jsonify({
+            'monthly_data': monthly_data,
+            'brand_analysis': sorted_brand_analysis,
+            'content_analysis': sorted_content_analysis,
+            'date_preset': date_preset,
+            'extraction_date': datetime.now().isoformat(),
+            'successful_campaigns': successful_campaigns,
+            'failed_campaigns': failed_campaigns,
+            'total_campaigns': len(campaigns),
+            'processed_campaigns': min(len(campaigns), max_campaigns)
+        })
+        
+    except Exception as e:
+        logger.error(f"Lỗi /api/meta-report-insights: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/meta-report-content-insights')
+def api_meta_report_content_insights():
+    """Lấy danh sách bài viết Facebook của 1 page và tạo AI insights cho Meta Report."""
+    try:
+        # Always use fixed PAGE ID from environment
+        page_id = (os.getenv('FB_PAGE_ID') or os.getenv('PAGE_ID') or '').strip()
+        limit = int(request.args.get('limit', '50'))
+        since = request.args.get('since', '').strip()
+        until = request.args.get('until', '').strip()
+        if not page_id:
+            return jsonify({'error': 'page_id is required', 'posts': []}), 400
+
+        # Use tokens from .env as requested: prefer FACEBOOK_ACCESS_TOKEN, then USER_TOKEN
+        token = os.getenv('FACEBOOK_ACCESS_TOKEN') or os.getenv('USER_TOKEN') or get_access_token()
+        if not token:
+            return jsonify({'error': 'Missing access token', 'posts': []}), 500
+
+        base_url = 'https://graph.facebook.com/v23.0'
+        url = f"{base_url}/{page_id}/posts"
+        params = {
+            'access_token': token,
+            'fields': 'id,message,created_time,permalink_url',
+            'limit': max(5, min(50, limit))
+        }
+        if since and until:
+            params['since'] = since
+            params['until'] = until
+
+        res = requests.get(url, params=params, timeout=20)
+        if res.status_code != 200:
+            try:
+                err = res.json()
+            except Exception:
+                err = {'message': res.text}
+            logger.warning(f"Fetch posts failed {res.status_code}: {err}")
+            return jsonify({'error': err, 'posts': []}), 502
+
+        posts = res.json().get('data', [])
+
+        # Enrich posts with engagement metrics (shares, comments, reactions)
+        detail_fields = 'shares,comments.summary(true),reactions.summary(true)'
+        detailed_posts = []
+        for p in posts[:max(5, min(50, limit))]:
+            try:
+                pid = p.get('id')
+                if not pid:
+                    continue
+                dres = requests.get(
+                    f"{base_url}/{pid}",
+                    params={'access_token': token, 'fields': detail_fields},
+                    timeout=15
+                )
+                shares_count = 0
+                comments_count = 0
+                reactions_count = 0
+                if dres.status_code == 200:
+                    d = dres.json()
+                    shares_count = int(d.get('shares', {}).get('count', 0) or 0)
+                    comments_count = int((d.get('comments', {}) or {}).get('summary', {}).get('total_count', 0) or 0)
+                    reactions_count = int((d.get('reactions', {}) or {}).get('summary', {}).get('total_count', 0) or 0)
+                p['shares_count'] = shares_count
+                p['comments_count'] = comments_count
+                p['reactions_count'] = reactions_count
+                detailed_posts.append(p)
+            except Exception:
+                detailed_posts.append(p)
+        posts = detailed_posts
+        chatbot = OpenAIChatbot()
+        # Enrich AI prompt with time window context
+        if since and until:
+            for p in posts:
+                # no-op, we already filtered via API; just pass through
+                pass
+        ai = chatbot.analyze_posts_content(posts if isinstance(posts, list) else [])
+
+        return jsonify({
+            'page_id': page_id,
+            'count': len(posts),
+            'since': since or None,
+            'until': until or None,
+            'posts': posts,
+            'ai': ai,
+            'extraction_date': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Lỗi /api/meta-report-content-insights: {e}")
+        return jsonify({'error': str(e), 'posts': []}), 500
+
+def extract_brand_from_campaign_name(campaign_name):
+    """Extract brand name from campaign name"""
+    if not campaign_name:
+        return 'Unknown'
+    
+    # Simple brand extraction logic - can be enhanced
+    name_lower = campaign_name.lower()
+    
+    # Common brand patterns
+    if 'bbi' in name_lower or 'biz' in name_lower:
+        return 'BBI'
+    elif 'meta' in name_lower or 'facebook' in name_lower:
+        return 'Meta'
+    elif 'google' in name_lower:
+        return 'Google'
+    elif 'tiktok' in name_lower:
+        return 'TikTok'
+    else:
+        # Extract first word as brand
+        words = campaign_name.split()
+        if words:
+            return words[0][:20]  # Limit length
+        return 'Unknown'
+
+def extract_content_format_from_campaign_name(campaign_name):
+    """Extract content format from campaign name"""
+    if not campaign_name:
+        return 'Unknown'
+    
+    name_lower = campaign_name.lower()
+    
+    # Content format patterns
+    if 'video' in name_lower or 'reel' in name_lower:
+        return 'Video'
+    elif 'image' in name_lower or 'photo' in name_lower or 'picture' in name_lower:
+        return 'Image'
+    elif 'carousel' in name_lower:
+        return 'Carousel'
+    elif 'story' in name_lower:
+        return 'Story'
+    elif 'post' in name_lower:
+        return 'Post'
+    elif 'ad' in name_lower:
+        return 'Ad'
+    else:
+        return 'Mixed'
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5002))

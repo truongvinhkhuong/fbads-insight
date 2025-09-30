@@ -150,3 +150,124 @@
 ::-webkit-scrollbar-thumb:hover {
     background: #1e6b8a;
 }
+
+/* Meta Report Insights Specific Styles */
+.meta-report-card {
+    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border-left: 4px solid var(--primary);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.meta-report-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.meta-report-metric {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+.meta-report-metric:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 4px rgba(36,123,160,0.1);
+}
+
+.meta-report-table {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.meta-report-table th {
+    background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.75rem;
+}
+
+.meta-report-table td {
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.meta-report-table tr:hover {
+    background-color: #f9fafb;
+}
+
+.meta-report-chart-container {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.meta-report-analysis-item {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 8px;
+    padding: 1rem;
+    border-left: 3px solid var(--primary);
+    transition: all 0.2s ease;
+}
+
+.meta-report-analysis-item:hover {
+    background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+    transform: translateX(4px);
+}
+
+.meta-report-performance-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.meta-report-performance-excellent {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.meta-report-performance-good {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.meta-report-performance-average {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.meta-report-performance-poor {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* Responsive adjustments for Meta Report */
+@media (max-width: 768px) {
+    .meta-report-card {
+        padding: 1rem;
+    }
+    
+    .meta-report-metric {
+        padding: 0.75rem;
+    }
+    
+    .meta-report-table {
+        font-size: 0.875rem;
+    }
+    
+    .meta-report-chart-container {
+        padding: 1rem;
+    }
+}
