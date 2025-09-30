@@ -125,6 +125,73 @@
         </div>
     </div>
     
+    <!-- Agency Report (Funnel) -->
+    <div class="p-6 border-t border-gray-200">
+        <h4 class="text-lg font-semibold mb-4 text-gray-800">Report đại lý</h4>
+        <div class="grid grid-cols-1 gap-8 items-start lg:flex">
+            <div class="bg-white" style="overflow: visible; flex: 1 1 auto;">
+                <div id="agency-funnel" class="w-full flex items-center justify-center text-gray-400" style="min-height: 460px; overflow: visible;">Đang tải phễu...</div>
+            </div>
+            <div class="space-y-4 self-start" style="flex: 0 0 420px; min-width: 420px;">
+                <div class="meta-report-card">
+                    <div class="font-medium mb-2">Ngân sách và hiển thị</div>
+                    <div class="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <div class="text-gray-500">Lượt hiển thị</div>
+                            <div class="font-semibold" id="agency-display-impressions">0</div>
+                            <div class="text-xs text-gray-500" id="agency-display-impressions-delta">0%</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500">Lượt tiếp cận</div>
+                            <div class="font-semibold" id="agency-display-reach">0</div>
+                            <div class="text-xs text-gray-500" id="agency-display-reach-delta">0%</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500">CTR (tất cả)</div>
+                            <div class="font-semibold" id="agency-display-ctr">0%</div>
+                            <div class="text-xs text-gray-500" id="agency-display-ctr-delta">0%</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="meta-report-card">
+                    <div class="font-medium mb-2">Chỉ số tương tác</div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <div class="text-gray-500">Lượt tương tác</div>
+                            <div class="font-semibold" id="agency-engagement-total">0</div>
+                            <div class="text-xs text-gray-500" id="agency-engagement-total-delta">0%</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500">Lượt click vào liên kết</div>
+                            <div class="font-semibold" id="agency-engagement-clicks">0</div>
+                            <div class="text-xs text-gray-500" id="agency-engagement-clicks-delta">0%</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="meta-report-card">
+                    <div class="font-medium mb-2">Tỉ lệ chuyển đổi</div>
+                    <div class="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                            <div class="text-gray-500">Bắt đầu trò chuyện</div>
+                            <div class="font-semibold" id="agency-conv-messages">0</div>
+                            <div class="text-xs text-gray-500" id="agency-conv-messages-delta">0%</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500">Lượt mua trên meta</div>
+                            <div class="font-semibold" id="agency-conv-purchase">0</div>
+                            <div class="text-xs text-gray-500" id="agency-conv-purchase-delta">0%</div>
+                        </div>
+                        <div>
+                            <div class="text-gray-500">Giá trị chuyển đổi</div>
+                            <div class="font-semibold" id="agency-conv-value">0</div>
+                            <div class="text-xs text-gray-500" id="agency-conv-value-delta">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Monthly Trends Chart -->
     <div class="p-6 border-t border-gray-200">
         <h4 class="text-lg font-semibold mb-4 text-gray-800">Xu hướng Hiệu suất theo Tháng</h4>

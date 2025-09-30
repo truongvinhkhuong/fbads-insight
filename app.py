@@ -1712,6 +1712,200 @@ def extract_content_format_from_campaign_name(campaign_name):
     else:
         return 'Mixed'
 
+@app.route('/api/agency-report')
+def api_agency_report():
+    """Agency monthly performance report for page/agent funnel with MoM change."""
+    try:
+        # Optional explicit month filter, format YYYY-MM
+        month_filter = (request.args.get('month') or '').strip()
+        token = get_access_token()
+        if not token:
+            return jsonify({'error': 'Missing access token'}), 500
+
+        ads_data = load_ads_data()
+        if ads_data.get('error'):
+            return jsonify({'error': ads_data['error']}), 500
+        campaigns = ads_data.get('campaigns', [])
+        if not campaigns:
+            return jsonify({'error': 'No campaigns found', 'months': {}, 'funnel': {}, 'groups': {}})
+
+        base_url = 'https://graph.facebook.com/v23.0'
+
+        # Aggregate by YYYY-MM across campaigns
+        months = {}
+
+        def ensure_month(mkey: str) -> dict:
+            return months.setdefault(mkey, {
+                'impressions': 0,
+                'reach': 0,
+                'clicks': 0,
+                'spend': 0.0,
+                'engagement': 0,
+                'link_clicks': 0,
+                'messaging_starts': 0,
+                'purchases': 0,
+                'purchase_value': 0.0,
+            })
+
+        # Limit to avoid timeout
+        max_campaigns = 15
+        for campaign in campaigns[:max_campaigns]:
+            cid = campaign.get('campaign_id')
+            if not cid:
+                continue
+            try:
+                url = f"{base_url}/{cid}/insights"
+                params = {
+                    'access_token': token,
+                    'fields': 'impressions,clicks,spend,ctr,cpc,cpm,reach,actions,conversion_values,inline_link_clicks,video_play_actions,video_3_sec_watched_actions,video_10_sec_watched_actions',
+                    'date_preset': 'last_90d',
+                    'time_increment': 1
+                }
+                res = requests.get(url, params=params, timeout=25)
+                # Fallbacks on failure/empty
+                if res.status_code != 200 or not (res.json().get('data') if res.headers.get('content-type','').startswith('application/json') else []):
+                    for fb in ['last_180d', 'last_30d', 'lifetime']:
+                        p2 = params.copy(); p2['date_preset'] = fb
+                        try:
+                            r2 = requests.get(url, params=p2, timeout=25)
+                            if r2.status_code == 200 and (r2.json().get('data') or []):
+                                res = r2
+                                break
+                        except Exception:
+                            continue
+                    if res.status_code != 200:
+                        continue
+                for row in res.json().get('data', []):
+                    date_key = row.get('date_start') or row.get('date') or row.get('date_stop') or ''
+                    if not date_key:
+                        continue
+                    mkey = date_key[:7]
+                    g = ensure_month(mkey)
+                    g['impressions'] += int(float(row.get('impressions', 0) or 0))
+                    g['reach'] += int(float(row.get('reach', 0) or 0))
+                    g['clicks'] += int(float(row.get('clicks', 0) or 0))
+                    g['spend'] += float(row.get('spend', 0) or 0)
+                    g['link_clicks'] += int(float(row.get('inline_link_clicks', 0) or 0))
+
+                    for a in (row.get('actions') or []):
+                        at = (a.get('action_type') or '').lower()
+                        try:
+                            val = int(float(a.get('value', 0) or 0))
+                        except Exception:
+                            val = 0
+                        if at == 'post_engagement':
+                            g['engagement'] += val
+                        elif at in ['link_click', 'landing_page_view']:
+                            g['link_clicks'] += val
+                        elif (at.startswith('onsite_conversion.messaging') or
+                              at in ['messaging_conversation_started', 'onsite_conversion.messaging_conversation_started', 'new_messaging_connection'] or
+                              ('messaging' in at and ('conversation' in at or 'first_reply' in at))):
+                            g['messaging_starts'] += val
+                        elif at == 'purchase' or 'purchase' in at:
+                            g['purchases'] += val
+
+                    for cv in (row.get('conversion_values') or []):
+                        cvt = (cv.get('action_type') or '').lower()
+                        try:
+                            v = float(cv.get('value', 0) or 0)
+                        except Exception:
+                            v = 0.0
+                        if cvt == 'purchase' or 'purchase' in cvt:
+                            g['purchase_value'] += v
+                        elif (cvt.startswith('onsite_conversion.messaging') or
+                              cvt in ['messaging_conversation_started', 'onsite_conversion.messaging_conversation_started']):
+                            g['messaging_starts'] += int(v)
+
+            except Exception:
+                continue
+
+        if not months:
+            # Fallback: aggregate from daily-tracking endpoint which already consolidates metrics
+            try:
+                from flask import current_app
+                with current_app.test_request_context('/api/daily-tracking?date_preset=last_90d'):
+                    resp = api_daily_tracking()
+                    payload = resp[0].get_json() if isinstance(resp, tuple) else resp.get_json()
+                    daily = payload.get('daily', [])
+                    for r in daily:
+                        mkey = (r.get('date_start') or '')[:7]
+                        if not mkey:
+                            continue
+                        g = ensure_month(mkey)
+                        g['impressions'] += int(float(r.get('impressions',0) or 0))
+                        g['reach'] += int(float(r.get('reach',0) or 0))
+                        g['clicks'] += int(float(r.get('clicks',0) or 0))
+                        g['spend'] += float(r.get('spend',0) or 0)
+                        g['engagement'] += int(float(r.get('post_engagement',0) or 0))
+                        g['link_clicks'] += int(float(r.get('inline_link_clicks',0) or 0))
+                        g['messaging_starts'] += int(float(r.get('messaging_starts',0) or 0))
+                        g['purchases'] += int(float(r.get('purchases',0) or 0))
+                        g['purchase_value'] += float(r.get('purchase_value',0) or 0)
+            except Exception:
+                pass
+
+        # Determine latest month and previous month
+        sorted_months = sorted(months.keys())
+        latest = month_filter if month_filter in months else (sorted_months[-1] if sorted_months else None)
+        prev = None
+        if latest and latest in sorted_months:
+            idx = sorted_months.index(latest)
+            if idx > 0:
+                prev = sorted_months[idx-1]
+
+        def pct_delta(curr: float, past: float) -> float:
+            if past == 0:
+                return 0.0 if curr == 0 else 100.0
+            return ((curr - past) / abs(past)) * 100.0
+
+        cur = months.get(latest, {}) if latest else {}
+        prv = months.get(prev, {}) if prev else {}
+
+        # Derived metrics
+        cur_ctr = (cur.get('clicks', 0) / max(cur.get('impressions', 1), 1)) * 100.0 if cur else 0.0
+        prv_ctr = (prv.get('clicks', 0) / max(prv.get('impressions', 1), 1)) * 100.0 if prv else 0.0
+
+        funnel = [
+            {'key': 'impressions', 'title': 'Lượt hiển thị', 'label': 'Hiển thị', 'total': int(cur.get('impressions', 0)), 'delta_pct': pct_delta(cur.get('impressions', 0), prv.get('impressions', 0))},
+            {'key': 'reach', 'title': 'Lượt tiếp cận', 'label': 'Tiếp cận', 'total': int(cur.get('reach', 0)), 'delta_pct': pct_delta(cur.get('reach', 0), prv.get('reach', 0))},
+            {'key': 'engagement', 'title': 'Lượt tương tác', 'label': 'Tương tác', 'total': int(cur.get('engagement', 0)), 'delta_pct': pct_delta(cur.get('engagement', 0), prv.get('engagement', 0))},
+            {'key': 'link_clicks', 'title': 'Lượt click vào liên kết', 'label': 'Clicks', 'total': int(cur.get('link_clicks', 0)), 'delta_pct': pct_delta(cur.get('link_clicks', 0), prv.get('link_clicks', 0))},
+            {'key': 'messaging_starts', 'title': 'Bắt đầu trò chuyện', 'label': 'Quan tâm', 'total': int(cur.get('messaging_starts', 0)), 'delta_pct': pct_delta(cur.get('messaging_starts', 0), prv.get('messaging_starts', 0))},
+            {'key': 'purchases', 'title': 'Lượt mua trên Meta', 'label': 'Chuyển đổi', 'total': int(cur.get('purchases', 0)), 'delta_pct': pct_delta(cur.get('purchases', 0), prv.get('purchases', 0))},
+        ]
+
+        groups = {
+            'display': [
+                {'key': 'impressions', 'title': 'Lượt hiển thị', 'total': int(cur.get('impressions', 0)), 'delta_pct': pct_delta(cur.get('impressions', 0), prv.get('impressions', 0))},
+                {'key': 'reach', 'title': 'Lượt tiếp cận', 'total': int(cur.get('reach', 0)), 'delta_pct': pct_delta(cur.get('reach', 0), prv.get('reach', 0))},
+                {'key': 'ctr', 'title': '%CTR (tất cả)', 'total': round(cur_ctr, 2), 'delta_pct': round(pct_delta(cur_ctr, prv_ctr), 2)}
+            ],
+            'engagement': [
+                {'key': 'engagement', 'title': 'Lượt tương tác', 'total': int(cur.get('engagement', 0)), 'delta_pct': pct_delta(cur.get('engagement', 0), prv.get('engagement', 0))},
+                {'key': 'link_clicks', 'title': 'Lượt click vào liên kết', 'total': int(cur.get('link_clicks', 0)), 'delta_pct': pct_delta(cur.get('link_clicks', 0), prv.get('link_clicks', 0))}
+            ],
+            'conversion': [
+                {'key': 'messaging_starts', 'title': 'Bắt đầu trò chuyện qua tin nhắn', 'total': int(cur.get('messaging_starts', 0)), 'delta_pct': pct_delta(cur.get('messaging_starts', 0), prv.get('messaging_starts', 0))},
+                {'key': 'purchases', 'title': 'Lượt mua trên meta', 'total': int(cur.get('purchases', 0)), 'delta_pct': pct_delta(cur.get('purchases', 0), prv.get('purchases', 0))},
+                {'key': 'purchase_value', 'title': 'Giá trị chuyển đổi từ lượt mua', 'total': round(cur.get('purchase_value', 0.0), 2), 'delta_pct': round(pct_delta(cur.get('purchase_value', 0.0), prv.get('purchase_value', 0.0)), 2)}
+            ]
+        }
+
+        return jsonify({
+            'months': months,
+            'latest_month': latest,
+            'previous_month': prev,
+            'funnel': funnel,
+            'groups': groups,
+            'spend': round(cur.get('spend', 0.0), 2),
+            'purchase_value': round(cur.get('purchase_value', 0.0), 2),
+            'extraction_date': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Lỗi /api/agency-report: {e}")
+        # Do not hard fail; return an empty but valid payload for UI
+        return jsonify({'error': str(e), 'months': {}, 'funnel': [], 'groups': {}}), 200
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5002))
     debug = os.environ.get('FLASK_ENV') == 'development'

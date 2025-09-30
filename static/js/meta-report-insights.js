@@ -111,6 +111,167 @@ function sanitizeAIText(text){
     return t.trim();
 }
 
+// Agency report rendering
+async function loadAgencyReport() {
+    try {
+        const wrap = document.getElementById('agency-funnel');
+        if (!wrap) return;
+        wrap.textContent = 'Đang tải phễu...';
+        const res = await fetch('/api/agency-report');
+        const data = await res.json();
+        if (!res.ok || data.error) {
+            wrap.textContent = 'Không thể tải dữ liệu phễu';
+            return;
+        }
+        // cache spend and revenue for annotations
+        window.metaAgencyCacheSpend = Number(data.spend || 0);
+        window.metaAgencyPurchaseValue = Number(data.purchase_value || 0);
+        // Render SVG funnel chart with gradients, shadows and side annotations
+        const funnel = (data.funnel || []).slice(0, 6);
+        const max = Math.max(1, ...funnel.map(f => f.total || 0));
+        const colors = ['#0ea5e9','#0bb49f','#f59e0b','#f97316','#ef4444','#8b5cf6'];
+        const rect = wrap.getBoundingClientRect();
+        const available = (rect.width || 680);
+        // Use almost full width for the SVG; annotations live inside SVG now
+        const W = Math.max(520, Math.floor(available - 40));
+        const H = Math.max(280, 90 * funnel.length + 20);
+        const topWidth = Math.floor(W * 0.86);
+        const minWidth = Math.floor(W * 0.42);
+        const stageHeight = Math.floor((H - 40) / funnel.length) - 6;
+        const topX = (W - topWidth) / 2;
+
+        // desired widths proportional to totals; enforce decreasing shape
+        const target = funnel.map(s => Math.max(minWidth, (s.total / max) * topWidth));
+        const widths = [];
+        for (let i = 0; i < target.length; i++) {
+            const prev = i === 0 ? topWidth : widths[i-1] - 10;
+            widths.push(Math.max(minWidth, Math.min(prev, target[i])));
+        }
+
+        // defs: gradients and soft shadow
+        const defs = () => {
+            let g = '<defs>';
+            g += `
+            <filter id="funnelShadow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.15"/>
+            </filter>`;
+            for (let i = 0; i < funnel.length; i++) {
+                const c = colors[i%colors.length];
+                g += `
+                <linearGradient id="grad${i}" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="${c}" stop-opacity="0.95"/>
+                    <stop offset="100%" stop-color="${c}" stop-opacity="0.75"/>
+                </linearGradient>`;
+            }
+            g += '</defs>';
+            return g;
+        };
+
+        let y = 20;
+        let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+        svg += defs();
+        // background subtle grid
+        svg += `<rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>`;
+        for (let i = 0; i < funnel.length; i++) {
+            const wTop = i === 0 ? topWidth : widths[i-1];
+            const wBot = widths[i];
+            const xTop = (W - wTop) / 2;
+            const xBot = (W - wBot) / 2;
+            const h = stageHeight;
+            const path = `M ${xTop} ${y} L ${xTop + wTop} ${y} L ${xBot + wBot} ${y + h} L ${xBot} ${y + h} Z`;
+            svg += `<path d="${path}" fill="url(#grad${i})" stroke="#ffffff" stroke-width="2" filter="url(#funnelShadow)"/>`;
+            // labels
+            const label = funnel[i].title || '';
+            const value = (funnel[i].total || 0).toLocaleString('vi-VN');
+            svg += `<text x="${W/2}" y="${y + h/2 - 4}" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="600">${label}</text>`;
+            svg += `<text x="${W/2}" y="${y + h/2 + 14}" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="700">${value}</text>`;
+            // right side annotation with cost ratios (skip for first stage - impressions)
+            if (i > 0) {
+                const leftVal = funnel[i-1]?.total || funnel[i].total || 0;
+                const rightVal = funnel[i].total || 0;
+                const ratio = leftVal > 0 ? leftVal / rightVal : 0; // proxy if spend not available per stage
+                // mapping labels for remaining stages from top to bottom
+                const rightLabels = ['Tương tác','Quan tâm','Tiếp cận', 'Chuyển đổi','Doanh thu'];
+                const labelRight = rightLabels[Math.min(i-1, rightLabels.length-1)] || '';
+                const displayVal = (()=>{
+                    if(i===funnel.length-1){
+                        // Last stage: revenue value
+                        return (window.metaAgencyPurchaseValue||0).toLocaleString('vi-VN');
+                    }
+                    return ratio>0? ratio.toFixed(2): '0.00';
+                })();
+                const annX = Math.min(W - 20 - 240, xTop + wTop + 24);
+                const annY = y + h/2 - 14;
+                const boxW = 240;
+                svg += `<line x1="${xTop + wTop - 4}" y1="${y + h/2}" x2="${annX - 8}" y2="${annY + 14}" stroke="#cbd5e1" stroke-width="1.5"/>`;
+                svg += `<rect x="${annX}" y="${annY}" rx="8" ry="8" width="${boxW}" height="28" fill="#ffffff" stroke="#e2e8f0"/>`;
+                svg += `<text x="${annX + 10}" y="${annY + 19}" fill="#334155" font-size="12">${labelRight}</text>`;
+                svg += `<text x="${annX + boxW - 10}" y="${annY + 19}" text-anchor="end" fill="#0f172a" font-size="12" font-weight="700">${displayVal}</text>`;
+            }
+            y += h + 12;
+        }
+        svg += '</svg>';
+        wrap.innerHTML = svg;
+
+        // Fill metric groups
+        const groups = data.groups || {};
+        const g = (key, id, fmtPct=false) => {
+            const item = (groups[key]||[]).find(x=>x.key===id);
+            return item || { total: 0, delta_pct: 0 };
+        };
+        const setVal = (el, val, isPct=false) => {
+            const e = document.getElementById(el);
+            if (!e) return;
+            e.textContent = isPct ? `${Number(val||0).toFixed(2)}%` : (typeof val==='number'? val.toLocaleString('vi-VN') : val);
+        };
+        const setDelta = (el, val) => {
+            const e = document.getElementById(el);
+            if (!e) return;
+            // Remove percentage display for agency report as requested
+            e.textContent = '';
+            e.style.display = 'none';
+        };
+
+        const dImp = g('display','impressions');
+        setVal('agency-display-impressions', dImp.total);
+        setDelta('agency-display-impressions-delta', dImp.delta_pct);
+
+        const dReach = g('display','reach');
+        setVal('agency-display-reach', dReach.total);
+        setDelta('agency-display-reach-delta', dReach.delta_pct);
+
+        const dCtr = g('display','ctr');
+        setVal('agency-display-ctr', dCtr.total, true);
+        setDelta('agency-display-ctr-delta', dCtr.delta_pct);
+
+        const eTotal = g('engagement','engagement');
+        setVal('agency-engagement-total', eTotal.total);
+        setDelta('agency-engagement-total-delta', eTotal.delta_pct);
+
+        const eClicks = g('engagement','link_clicks');
+        setVal('agency-engagement-clicks', eClicks.total);
+        setDelta('agency-engagement-clicks-delta', eClicks.delta_pct);
+
+        const cMsg = g('conversion','messaging_starts');
+        setVal('agency-conv-messages', cMsg.total);
+        setDelta('agency-conv-messages-delta', cMsg.delta_pct);
+
+        const cPur = g('conversion','purchases');
+        setVal('agency-conv-purchase', cPur.total);
+        setDelta('agency-conv-purchase-delta', cPur.delta_pct);
+
+        const cVal = g('conversion','purchase_value');
+        setVal('agency-conv-value', cVal.total);
+        setDelta('agency-conv-value-delta', cVal.delta_pct);
+    } catch (e) {
+        console.error('loadAgencyReport error', e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadAgencyReport();
+});
+
 function renderAITextAsHtml(text){
     // Simple renderer: convert headings and bullets, and inline bold/italic
     const lines = text.split(/\n/);
