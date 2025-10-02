@@ -117,8 +117,47 @@ async function fetchPivotAdvancedBreakdowns(){
 
 function renderPivotAdvancedPies(canvasId, bucket){
     const c=document.getElementById(canvasId); if(!c) return;
-    const labels=Object.keys(bucket||{});
-    const values=labels.map(k=> parseInt((bucket[k]?.impressions)||0) );
+    const originalLabels=Object.keys(bucket||{});
+    const originalValues=originalLabels.map(k=> parseInt((bucket[k]?.impressions)||0) );
+    
+    // Calculate total impressions for percentage calculation
+    const totalImpressions = originalValues.reduce((sum, val) => sum + val, 0);
+    
+    // For position distribution chart (pivot-adv-pie-geo), group items below 5%
+    let labels, values;
+    if (canvasId === 'pivot-adv-pie-geo' && totalImpressions > 0) {
+        const threshold = 0.05; // 5%
+        const mainItems = [];
+        const othersItems = [];
+        let othersTotal = 0;
+        
+        originalLabels.forEach((label, index) => {
+            const value = originalValues[index];
+            const percentage = value / totalImpressions;
+            
+            if (percentage >= threshold) {
+                mainItems.push({ label, value });
+            } else {
+                othersItems.push({ label, value });
+                othersTotal += value;
+            }
+        });
+        
+        // Build final labels and values arrays
+        labels = mainItems.map(item => item.label);
+        values = mainItems.map(item => item.value);
+        
+        // Add "Others" category if there are items below 5%
+        if (othersItems.length > 0) {
+            labels.push('Khác');
+            values.push(othersTotal);
+        }
+    } else {
+        // For other charts, use original data
+        labels = originalLabels;
+        values = originalValues;
+    }
+    
     const ctx=c.getContext('2d');
     if(!window.charts) window.charts={};
     charts[canvasId] && charts[canvasId].destroy();
@@ -135,17 +174,87 @@ function renderPivotAdvancedDistTable(tbodyId, bucket, firstCol){
     const tbody=document.getElementById(tbodyId); if(!tbody) return;
     tbody.innerHTML='';
     let totI=0, totC=0, totNew=0;
-    Object.entries(bucket||{}).forEach(([k,v])=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML=
-          `<td class="px-2 py-2">${k}</td>`+
-          `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.impressions||0))}</td>`+
-          `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.clicks||0))}</td>`+
-          `<td class="px-2 py-2">${v.ctr?.toFixed? v.ctr.toFixed(2): '0.00'}%</td>`+
-          `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.new_messages||0))}</td>`;
-        tbody.appendChild(tr);
-        totI+=parseInt(v.impressions||0); totC+=parseInt(v.clicks||0); totNew+=parseInt(v.new_messages||0);
-    });
+    
+    // For position distribution table (pivot-adv-geo-tb), group items below 5%
+    if (tbodyId === 'pivot-adv-geo-tb') {
+        const entries = Object.entries(bucket||{});
+        const totalImpressions = entries.reduce((sum, [k,v]) => sum + parseInt(v.impressions||0), 0);
+        
+        if (totalImpressions > 0) {
+            const threshold = 0.05; // 5%
+            const mainItems = [];
+            const othersItems = [];
+            let othersImpressions = 0, othersClicks = 0, othersNewMessages = 0;
+            
+            entries.forEach(([k,v]) => {
+                const impressions = parseInt(v.impressions||0);
+                const percentage = impressions / totalImpressions;
+                
+                if (percentage >= threshold) {
+                    mainItems.push([k, v]);
+                } else {
+                    othersItems.push([k, v]);
+                    othersImpressions += impressions;
+                    othersClicks += parseInt(v.clicks||0);
+                    othersNewMessages += parseInt(v.new_messages||0);
+                }
+            });
+            
+            // Render main items
+            mainItems.forEach(([k,v])=>{
+                const tr=document.createElement('tr');
+                tr.innerHTML=
+                  `<td class="px-2 py-2">${k}</td>`+
+                  `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.impressions||0))}</td>`+
+                  `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.clicks||0))}</td>`+
+                  `<td class="px-2 py-2">${v.ctr?.toFixed? v.ctr.toFixed(2): '0.00'}%</td>`+
+                  `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.new_messages||0))}</td>`;
+                tbody.appendChild(tr);
+                totI+=parseInt(v.impressions||0); totC+=parseInt(v.clicks||0); totNew+=parseInt(v.new_messages||0);
+            });
+            
+            // Render "Others" category if there are items below 5%
+            if (othersItems.length > 0) {
+                const othersCtr = othersImpressions > 0 ? (othersClicks/othersImpressions)*100 : 0;
+                const tr=document.createElement('tr');
+                tr.innerHTML=
+                  `<td class="px-2 py-2">Khác</td>`+
+                  `<td class="px-2 py-2">${NUM_FMT.format(othersImpressions)}</td>`+
+                  `<td class="px-2 py-2">${NUM_FMT.format(othersClicks)}</td>`+
+                  `<td class="px-2 py-2">${othersCtr.toFixed(2)}%</td>`+
+                  `<td class="px-2 py-2">${NUM_FMT.format(othersNewMessages)}</td>`;
+                tbody.appendChild(tr);
+                totI += othersImpressions; totC += othersClicks; totNew += othersNewMessages;
+            }
+        } else {
+            // Fallback to original behavior if no data
+            Object.entries(bucket||{}).forEach(([k,v])=>{
+                const tr=document.createElement('tr');
+                tr.innerHTML=
+                  `<td class="px-2 py-2">${k}</td>`+
+                  `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.impressions||0))}</td>`+
+                  `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.clicks||0))}</td>`+
+                  `<td class="px-2 py-2">${v.ctr?.toFixed? v.ctr.toFixed(2): '0.00'}%</td>`+
+                  `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.new_messages||0))}</td>`;
+                tbody.appendChild(tr);
+                totI+=parseInt(v.impressions||0); totC+=parseInt(v.clicks||0); totNew+=parseInt(v.new_messages||0);
+            });
+        }
+    } else {
+        // For other tables, use original behavior
+        Object.entries(bucket||{}).forEach(([k,v])=>{
+            const tr=document.createElement('tr');
+            tr.innerHTML=
+              `<td class="px-2 py-2">${k}</td>`+
+              `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.impressions||0))}</td>`+
+              `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.clicks||0))}</td>`+
+              `<td class="px-2 py-2">${v.ctr?.toFixed? v.ctr.toFixed(2): '0.00'}%</td>`+
+              `<td class="px-2 py-2">${NUM_FMT.format(parseInt(v.new_messages||0))}</td>`;
+            tbody.appendChild(tr);
+            totI+=parseInt(v.impressions||0); totC+=parseInt(v.clicks||0); totNew+=parseInt(v.new_messages||0);
+        });
+    }
+    
     const footId=tbodyId+'-foot';
     const tfoot=document.getElementById(footId);
     if(tfoot){

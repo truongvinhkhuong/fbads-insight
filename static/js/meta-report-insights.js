@@ -872,6 +872,14 @@ function initializeAgencyReportFilters() {
         });
     }
     
+    // Initialize PDF export button
+    const exportPdfBtn = document.getElementById('agency-export-pdf-btn');
+    if (exportPdfBtn) {
+        exportPdfBtn.addEventListener('click', function() {
+            exportAgencyReportToPDF();
+        });
+    }
+    
     // Set default month display
     updateAgencyMonthDisplay('2025-09');
 }
@@ -889,6 +897,128 @@ function updateAgencyMonthDisplay(selectedMonth) {
     };
     
     display.textContent = `Tháng ${monthNames[month]}/${year}`;
+}
+
+// Export agency report to PDF
+async function exportAgencyReportToPDF() {
+    try {
+        console.log('Starting PDF export...');
+        
+        // Get the agency report section
+        const agencyReportSection = document.querySelector('#agency-report-section');
+        if (!agencyReportSection) {
+            console.error('Agency report section not found');
+            alert('Không tìm thấy phần báo cáo để xuất PDF');
+            return;
+        }
+        
+        // Show loading state
+        const exportBtn = document.getElementById('agency-export-pdf-btn');
+        const originalText = exportBtn.innerHTML;
+        exportBtn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Đang xuất...';
+        exportBtn.disabled = true;
+        
+        // Get current month for filename
+        const selectedMonth = document.getElementById('agency-month-select')?.value || '2025-09';
+        const [year, month] = selectedMonth.split('-');
+        const monthNames = {
+            '01': '01', '02': '02', '03': '03', '04': '04', '05': '05', '06': '06',
+            '07': '07', '08': '08', '09': '09', '10': '10', '11': '11', '12': '12'
+        };
+        const monthDisplay = `Thang_${monthNames[month]}_${year}`;
+        
+        // Create a temporary container for better PDF layout
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'absolute';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.top = '0';
+        tempContainer.style.width = '800px';
+        tempContainer.style.backgroundColor = 'white';
+        tempContainer.style.padding = '20px';
+        tempContainer.style.fontFamily = 'Arial, sans-serif';
+        
+        // Clone the agency report section
+        const clonedSection = agencyReportSection.cloneNode(true);
+        
+        // Remove the filter controls from the cloned version
+        const filterControls = clonedSection.querySelector('.flex.items-center.gap-4');
+        if (filterControls) {
+            filterControls.remove();
+        }
+        
+        // Add title and date
+        const titleDiv = document.createElement('div');
+        titleDiv.style.marginBottom = '20px';
+        titleDiv.style.textAlign = 'center';
+        titleDiv.innerHTML = `
+            <h1 style="font-size: 24px; font-weight: bold; color: #1f2937; margin-bottom: 5px;">REPORT ĐẠI LÝ</h1>
+            <p style="font-size: 14px; color: #6b7280;">Báo cáo hiệu suất phễu chuyển đổi - ${monthDisplay.replace('_', ' ')}</p>
+            <p style="font-size: 12px; color: #9ca3af;">Xuất ngày: ${new Date().toLocaleDateString('vi-VN')}</p>
+        `;
+        
+        tempContainer.appendChild(titleDiv);
+        tempContainer.appendChild(clonedSection);
+        document.body.appendChild(tempContainer);
+        
+        // Convert to canvas
+        const canvas = await html2canvas(tempContainer, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            width: 800,
+            height: tempContainer.scrollHeight
+        });
+        
+        // Remove temporary container
+        document.body.removeChild(tempContainer);
+        
+        // Create PDF
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = 210;
+        const pageHeight = 295;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        
+        let position = 0;
+        
+        // Add image to PDF
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        
+        // Add new pages if needed
+        while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+        }
+        
+        // Save PDF
+        const fileName = `Report_Dai_Ly_${monthDisplay}.pdf`;
+        pdf.save(fileName);
+        
+        console.log('PDF exported successfully:', fileName);
+        
+        // Reset button state
+        exportBtn.innerHTML = originalText;
+        exportBtn.disabled = false;
+        
+        // Show success message
+        alert(`Đã xuất PDF thành công: ${fileName}`);
+        
+    } catch (error) {
+        console.error('PDF export error:', error);
+        alert('Có lỗi khi xuất PDF. Vui lòng thử lại.');
+        
+        // Reset button state
+        const exportBtn = document.getElementById('agency-export-pdf-btn');
+        if (exportBtn) {
+            exportBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg> Xuất PDF';
+            exportBtn.disabled = false;
+        }
+    }
 }
 
 // Demo data for agency report when API is not available
