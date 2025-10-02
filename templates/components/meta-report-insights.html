@@ -325,4 +325,140 @@
             </div>
         </div>
     </div>
+
+    <!-- Agency Report Section -->
+    <div class="bg-white rounded-lg shadow mt-8 border border-gray-100">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-bold text-black">REPORT ĐẠI LÝ</h2>
+                    <p class="text-sm text-gray-600 mt-1">Báo cáo hiệu suất phễu chuyển đổi theo tháng</p>
+                </div>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600">Chọn tháng:</label>
+                    <select id="agency-month-select" class="border px-2 py-1 rounded text-sm">
+                        <option value="2025-09" selected>Tháng 09/2025</option>
+                        <option value="2025-10">Tháng 10/2025</option>
+                        <option value="2025-11">Tháng 11/2025</option>
+                        <option value="2025-12">Tháng 12/2025</option>
+                        <option value="2026-01">Tháng 01/2026</option>
+                        <option value="2026-02">Tháng 02/2026</option>
+                        <option value="2026-03">Tháng 03/2026</option>
+                        <option value="2026-04">Tháng 04/2026</option>
+                        <option value="2026-05">Tháng 05/2026</option>
+                        <option value="2026-06">Tháng 06/2026</option>
+                        <option value="2026-07">Tháng 07/2026</option>
+                        <option value="2026-08">Tháng 08/2026</option>
+                    </select>
+                </div>
+                <button id="agency-apply-filters-btn" class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+                    Áp dụng
+                </button>
+                <div class="text-sm text-gray-600">
+                    <span id="agency-month-display">Tháng 09/2025</span>
+                </div>
+            </div>
+            </div>
+        </div>
+        
+        <div class="p-6">
+            <!-- Agency Funnel Chart -->
+            <div class="mb-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Biểu đồ Phễu Chuyển đổi</h3>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div id="agency-funnel" class="w-full flex justify-center">
+                        <div class="text-gray-500">Đang tải dữ liệu phễu...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agency Metrics Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Display Metrics -->
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-blue-800 mb-3">Hiển thị</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Impressions:</span>
+                            <div class="text-right">
+                                <span id="agency-display-impressions" class="font-semibold">0</span>
+                                <span id="agency-display-impressions-delta" class="text-xs text-gray-500 ml-1"></span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Reach:</span>
+                            <div class="text-right">
+                                <span id="agency-display-reach" class="font-semibold">0</span>
+                                <span id="agency-display-reach-delta" class="text-xs text-gray-500 ml-1"></span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">CTR:</span>
+                            <div class="text-right">
+                                <span id="agency-display-ctr" class="font-semibold">0%</span>
+                                <span id="agency-display-ctr-delta" class="text-xs text-gray-500 ml-1"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Engagement Metrics -->
+                <div class="bg-green-50 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-green-800 mb-3">Tương tác</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Total:</span>
+                            <div class="text-right">
+                                <span id="agency-engagement-total" class="font-semibold">0</span>
+                                <span id="agency-engagement-total-delta" class="text-xs text-gray-500 ml-1"></span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Clicks:</span>
+                            <div class="text-right">
+                                <span id="agency-engagement-clicks" class="font-semibold">0</span>
+                                <span id="agency-engagement-clicks-delta" class="text-xs text-gray-500 ml-1"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Conversion Metrics -->
+                <div class="bg-orange-50 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-orange-800 mb-3">Chuyển đổi</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Messages:</span>
+                            <div class="text-right">
+                                <span id="agency-conv-messages" class="font-semibold">0</span>
+                                <span id="agency-conv-messages-delta" class="text-xs text-gray-500 ml-1"></span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Purchases:</span>
+                            <div class="text-right">
+                                <span id="agency-conv-purchase" class="font-semibold">0</span>
+                                <span id="agency-conv-purchase-delta" class="text-xs text-gray-500 ml-1"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Revenue Metrics -->
+                <div class="bg-purple-50 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-purple-800 mb-3">Doanh thu</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Purchase Value:</span>
+                            <div class="text-right">
+                                <span id="agency-conv-value" class="font-semibold">0 VNĐ</span>
+                                <span id="agency-conv-value-delta" class="text-xs text-gray-500 ml-1"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

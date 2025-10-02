@@ -1722,8 +1722,12 @@ def extract_content_format_from_campaign_name(campaign_name):
 def api_agency_report():
     """Agency monthly performance report for page/agent funnel with MoM change."""
     try:
-        # Optional explicit month filter, format YYYY-MM
+        # Get time filter parameters
         month_filter = (request.args.get('month') or '').strip()
+        date_preset = request.args.get('date_preset', 'last_90d')
+        since_date = request.args.get('since', '').strip()
+        until_date = request.args.get('until', '').strip()
+        
         token = get_access_token()
         if not token:
             return jsonify({'error': 'Missing access token'}), 500
@@ -1764,14 +1768,24 @@ def api_agency_report():
                 params = {
                     'access_token': token,
                     'fields': 'impressions,clicks,spend,ctr,cpc,cpm,reach,actions,conversion_values,inline_link_clicks,video_play_actions,video_3_sec_watched_actions,video_10_sec_watched_actions',
-                    'date_preset': 'last_90d',
                     'time_increment': 1
                 }
+                
+                # Set date range based on parameters
+                if since_date and until_date:
+                    params['time_range'] = f"{{\"since\":\"{since_date}\",\"until\":\"{until_date}\"}}"
+                else:
+                    params['date_preset'] = date_preset
                 res = requests.get(url, params=params, timeout=25)
                 # Fallbacks on failure/empty
                 if res.status_code != 200 or not (res.json().get('data') if res.headers.get('content-type','').startswith('application/json') else []):
-                    for fb in ['last_180d', 'last_30d', 'lifetime']:
-                        p2 = params.copy(); p2['date_preset'] = fb
+                    # Try different date presets as fallback
+                    fallback_presets = ['last_180d', 'last_30d', 'lifetime']
+                    for fb in fallback_presets:
+                        p2 = params.copy()
+                        if 'time_range' in p2:
+                            del p2['time_range']
+                        p2['date_preset'] = fb
                         try:
                             r2 = requests.get(url, params=p2, timeout=25)
                             if r2.status_code == 200 and (r2.json().get('data') or []):
@@ -1829,7 +1843,14 @@ def api_agency_report():
             # Fallback: aggregate from daily-tracking endpoint which already consolidates metrics
             try:
                 from flask import current_app
-                with current_app.test_request_context('/api/daily-tracking?date_preset=last_90d'):
+                # Build fallback URL with same time filters
+                fallback_url = '/api/daily-tracking?'
+                if since_date and until_date:
+                    fallback_url += f'since={since_date}&until={until_date}'
+                else:
+                    fallback_url += f'date_preset={date_preset}'
+                
+                with current_app.test_request_context(fallback_url):
                     resp = api_daily_tracking()
                     payload = resp[0].get_json() if isinstance(resp, tuple) else resp.get_json()
                     daily = payload.get('daily', [])
@@ -1852,7 +1873,19 @@ def api_agency_report():
 
         # Determine latest month and previous month
         sorted_months = sorted(months.keys())
-        latest = month_filter if month_filter in months else (sorted_months[-1] if sorted_months else None)
+        
+        # Find the latest month with actual data (non-zero spend)
+        latest = month_filter if month_filter in months else None
+        if not latest:
+            # Find the most recent month with data
+            for month in reversed(sorted_months):
+                if months[month].get('spend', 0) > 0 or months[month].get('impressions', 0) > 0:
+                    latest = month
+                    break
+            # If no month with data found, use the latest month
+            if not latest and sorted_months:
+                latest = sorted_months[-1]
+        
         prev = None
         if latest and latest in sorted_months:
             idx = sorted_months.index(latest)
@@ -1905,7 +1938,18 @@ def api_agency_report():
             'groups': groups,
             'spend': round(cur.get('spend', 0.0), 2),
             'purchase_value': round(cur.get('purchase_value', 0.0), 2),
-            'extraction_date': datetime.now().isoformat()
+            'extraction_date': datetime.now().isoformat(),
+            'filters': {
+                'date_preset': date_preset,
+                'since_date': since_date,
+                'until_date': until_date,
+                'month_filter': month_filter
+            },
+            'total_months': len(months),
+            'date_range': {
+                'earliest': sorted_months[0] if sorted_months else None,
+                'latest': sorted_months[-1] if sorted_months else None
+            }
         })
     except Exception as e:
         logger.error(f"Lỗi /api/agency-report: {e}")
