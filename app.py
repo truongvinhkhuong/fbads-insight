@@ -23,6 +23,12 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key')
 
 def get_access_token() -> str:
+    # Ưu tiên Page Access Token cho page insights và posts
+    page_token = os.getenv('PAGE_ACCESS_TOKEN')
+    if page_token:
+        return page_token
+    
+    # Fallback về User Token
     token = os.getenv('USER_TOKEN') or os.getenv('FACEBOOK_ACCESS_TOKEN')
     return token or ''
 
@@ -2090,6 +2096,652 @@ def api_filtered_data():
     except Exception as e:
         logger.error(f"Lỗi /api/filtered-data: {e}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/page-insights', methods=['GET'])
+def get_page_insights():
+    """Lấy dữ liệu page insights từ Facebook Graph API với bộ lọc thời gian."""
+    try:
+        page_id = (os.getenv('FB_PAGE_ID') or os.getenv('PAGE_ID') or '').strip()
+        access_token = get_access_token()
+        
+        if not page_id or not access_token:
+            return jsonify({'error': 'PAGE_ID hoặc ACCESS_TOKEN chưa được cấu hình'}), 400
+        
+        # Lấy tham số từ request
+        since = request.args.get('since', '').strip()
+        until = request.args.get('until', '').strip()
+        post_type = request.args.get('post_type', 'all').strip()
+        
+        # Nếu không có thời gian, lấy 30 ngày gần nhất
+        if not since or not until:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=30)
+            since = start_date.strftime('%Y-%m-%d')
+            until = end_date.strftime('%Y-%m-%d')
+        
+        base_url = "https://graph.facebook.com/v23.0"
+        
+        # Lấy page info
+        page_url = f"{base_url}/{page_id}"
+        page_params = {
+            'access_token': access_token,
+            'fields': 'name,fan_count,new_like_count'
+        }
+        page_response = requests.get(page_url, params=page_params)
+        
+        if page_response.status_code != 200:
+            return jsonify({'error': f'Không thể lấy thông tin page: {page_response.text}'}), 400
+        
+        page_data = page_response.json()
+        
+        # Lấy page insights với metrics cơ bản và hợp lệ
+        insights_data = {'data': []}
+        
+        # Thử các metrics cơ bản trước
+        basic_metrics = ['page_impressions', 'page_post_engagements', 'page_video_views']
+        
+        for metric in basic_metrics:
+            try:
+                insights_url = f"{base_url}/{page_id}/insights"
+                insights_params = {
+                    'access_token': access_token,
+                    'metric': metric,
+                    'period': 'day',
+                    'since': since,
+                    'until': until
+                }
+                insights_response = requests.get(insights_url, params=insights_params)
+                
+                if insights_response.status_code == 200:
+                    metric_data = insights_response.json()
+                    if 'data' in metric_data and metric_data['data']:
+                        insights_data['data'].extend(metric_data['data'])
+                else:
+                    logger.warning(f"Không thể lấy metric {metric}: {insights_response.text}")
+            except Exception as e:
+                logger.warning(f"Lỗi khi lấy metric {metric}: {str(e)}")
+        
+        logger.info(f"Đã lấy được {len(insights_data['data'])} metrics")
+        
+        # Lấy page posts với Page Access Token - sử dụng endpoint feed
+        posts_url = f"{base_url}/{page_id}/feed"
+        posts_params = {
+            'access_token': access_token,
+            'limit': 20  # Giảm số lượng posts để tránh timeout
+        }
+        posts_response = requests.get(posts_url, params=posts_params)
+        
+        # Xử lý lỗi posts một cách graceful
+        posts_data = {'data': []}
+        if posts_response.status_code == 200:
+            posts_data = posts_response.json()
+            logger.info(f"Đã lấy được {len(posts_data.get('data', []))} posts")
+        else:
+            logger.warning(f"Không thể lấy posts: {posts_response.text}")
+            # Không tạo dữ liệu mẫu, để posts_data rỗng
+        
+        # Xử lý dữ liệu insights
+        processed_insights = {}
+        daily_data = []
+        
+        for insight in insights_data.get('data', []):
+            metric_name = insight.get('name')
+            values = insight.get('values', [])
+            
+            processed_insights[metric_name] = values
+            
+            # Tạo dữ liệu theo ngày
+            for value in values:
+                date_str = value.get('end_time', '').split('T')[0]
+                metric_value = value.get('value', 0)
+                
+                # Tìm hoặc tạo entry cho ngày này
+                day_entry = next((d for d in daily_data if d['date'] == date_str), None)
+                if not day_entry:
+                    day_entry = {'date': date_str}
+                    daily_data.append(day_entry)
+                
+                day_entry[metric_name] = metric_value
+        
+        # Xử lý posts data
+        processed_posts = []
+        content_types = {}
+        
+        for post in posts_data.get('data', []):
+            # Xác định post type từ dữ liệu có sẵn
+            post_type_current = 'status'  # default
+            if 'attachments' in post:
+                attachments = post.get('attachments', {}).get('data', [])
+                if attachments:
+                    attachment = attachments[0]
+                    if 'media' in attachment:
+                        media = attachment['media']
+                        if 'image' in media:
+                            post_type_current = 'photo'
+                        elif 'video' in media:
+                            post_type_current = 'video'
+                    elif 'type' in attachment:
+                        if attachment['type'] == 'share':
+                            post_type_current = 'link'
+            
+            # Lọc theo post type nếu được chỉ định
+            if post_type != 'all' and post_type != post_type_current:
+                continue
+            
+            # Lọc theo ngày tháng
+            created_time = post.get('created_time', '')
+            if created_time:
+                try:
+                    post_date = datetime.fromisoformat(created_time.replace('Z', '+00:00'))
+                    since_date_obj = datetime.fromisoformat(since)
+                    until_date_obj = datetime.fromisoformat(until)
+                    
+                    if post_date.date() < since_date_obj.date() or post_date.date() > until_date_obj.date():
+                        continue
+                except:
+                    pass  # Nếu không parse được date thì bỏ qua filter
+            
+            # Đếm content types
+            content_types[post_type_current] = content_types.get(post_type_current, 0) + 1
+            
+            # Lấy insights và thông tin chi tiết cho mỗi post
+            post_id = post.get('id')
+            post_metrics = {
+                'post_impressions': 0,
+                'post_engaged_users': 0,  # Sẽ tính từ reactions
+                'post_clicks': 0,
+                'post_reactions_by_type_total': 0
+            }
+            
+            # Lấy thông tin chi tiết của post (attachments, likes, comments)
+            post_details = {
+                'likes_count': 0,
+                'comments_count': 0,
+                'attachments': [],
+                'thumbnail_url': None
+            }
+            
+            try:
+                # Lấy insights cho post này
+                post_insights_url = f"{base_url}/{post_id}/insights"
+                post_insights_params = {
+                    'access_token': access_token,
+                    'metric': 'post_impressions,post_clicks,post_reactions_by_type_total'
+                }
+                post_insights_response = requests.get(post_insights_url, params=post_insights_params)
+                
+                if post_insights_response.status_code == 200:
+                    insights_data = post_insights_response.json()
+                    for insight in insights_data.get('data', []):
+                        metric_name = insight.get('name')
+                        metric_value = insight.get('values', [{}])[0].get('value', 0)
+                        
+                        if metric_name == 'post_reactions_by_type_total':
+                            # Tính tổng reactions
+                            if isinstance(metric_value, dict):
+                                total_reactions = sum(metric_value.values())
+                                post_metrics['post_reactions_by_type_total'] = total_reactions
+                                # Sử dụng reactions làm engagement
+                                post_metrics['post_engaged_users'] = total_reactions
+                            else:
+                                post_metrics[metric_name] = metric_value
+                        else:
+                            post_metrics[metric_name] = metric_value
+                else:
+                    logger.warning(f"Không thể lấy insights cho post {post_id}: {post_insights_response.text}")
+            except Exception as e:
+                logger.warning(f"Lỗi khi lấy insights cho post {post_id}: {str(e)}")
+            
+            # Lấy thông tin chi tiết của post
+            try:
+                post_details_url = f"{base_url}/{post_id}"
+                post_details_params = {
+                    'access_token': access_token,
+                    'fields': 'likes.summary(true),comments,attachments'
+                }
+                post_details_response = requests.get(post_details_url, params=post_details_params)
+                
+                if post_details_response.status_code == 200:
+                    details_data = post_details_response.json()
+                    
+                    # Lấy likes count
+                    post_details['likes_count'] = details_data.get('likes', {}).get('summary', {}).get('total_count', 0)
+                    
+                    # Lấy comments count
+                    comments = details_data.get('comments', {}).get('data', [])
+                    post_details['comments_count'] = len(comments)
+                    
+                    # Lấy attachments
+                    attachments = details_data.get('attachments', {}).get('data', [])
+                    for attachment in attachments:
+                        attachment_info = {
+                            'type': attachment.get('type', 'unknown'),
+                            'media_url': None
+                        }
+                        
+                        if 'media' in attachment:
+                            media = attachment['media']
+                            if 'image' in media:
+                                attachment_info['media_url'] = media['image'].get('src')
+                                if not post_details['thumbnail_url']:
+                                    post_details['thumbnail_url'] = media['image'].get('src')
+                            elif 'video' in media:
+                                attachment_info['media_url'] = media['video'].get('src')
+                                # Lấy thumbnail từ video
+                                if not post_details['thumbnail_url'] and 'picture' in media['video']:
+                                    post_details['thumbnail_url'] = media['video'].get('picture')
+                        
+                        post_details['attachments'].append(attachment_info)
+                        
+            except Exception as e:
+                logger.warning(f"Lỗi khi lấy chi tiết post {post_id}: {str(e)}")
+            
+            # Tạo processed post với insights thực tế và thông tin chi tiết
+            processed_post = {
+                'id': post_id,
+                'message': post.get('message', ''),
+                'created_time': post.get('created_time'),
+                'type': post_type_current,
+                'permalink_url': f"https://facebook.com/{post_id}",
+                'impressions': post_metrics['post_impressions'],
+                'engagement': post_metrics['post_engaged_users'],
+                'clicks': post_metrics['post_clicks'],
+                'reactions': post_metrics['post_reactions_by_type_total'],
+                'likes_count': post_details['likes_count'],
+                'comments_count': post_details['comments_count'],
+                'attachments': post_details['attachments'],
+                'thumbnail_url': post_details['thumbnail_url']
+            }
+            
+            processed_posts.append(processed_post)
+        
+        # Sắp xếp posts theo impressions
+        processed_posts.sort(key=lambda x: x['impressions'], reverse=True)
+        
+        # Tính tổng các metrics từ insights thực tế
+        total_impressions = 0
+        total_engagements = 0
+        total_video_views = 0
+        
+        for insight in insights_data.get('data', []):
+            metric_name = insight.get('name')
+            values = insight.get('values', [])
+            
+            for value in values:
+                metric_value = value.get('value', 0)
+                if metric_name == 'page_impressions':
+                    total_impressions += metric_value
+                elif metric_name == 'page_post_engagements':
+                    total_engagements += metric_value
+                elif metric_name == 'page_video_views':
+                    total_video_views += metric_value
+        
+        # Tính tổng từ posts (nếu có)
+        total_post_impressions = sum(post['impressions'] for post in processed_posts)
+        total_post_engagements = sum(post['engagement'] for post in processed_posts)
+        total_post_clicks = sum(post['clicks'] for post in processed_posts)
+        total_post_reactions = sum(post['reactions'] for post in processed_posts)
+        
+        # Tạo response data
+        response_data = {
+            'page_info': {
+                'name': page_data.get('name', 'Unknown Page'),
+                'fan_count': page_data.get('fan_count', 0),
+                'new_like_count': page_data.get('new_like_count', 0)
+            },
+            'date_range': {
+                'since': since,
+                'until': until
+            },
+            'summary_metrics': {
+                'total_impressions': total_impressions,
+                'total_engagements': total_engagements,
+                'total_video_views': total_video_views,
+                'total_posts': len(processed_posts),
+                'total_post_impressions': total_post_impressions,
+                'total_post_engagements': total_post_engagements,
+                'total_post_clicks': total_post_clicks,
+                'total_post_reactions': total_post_reactions
+            },
+            'daily_data': daily_data,
+            'top_posts': processed_posts[:5],  # Top 5 posts
+            'content_types': content_types,
+            'filter_applied': {
+                'post_type': post_type,
+                'since': since,
+                'until': until
+            }
+        }
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error in get_page_insights: {str(e)}")
+        return jsonify({'error': f'Lỗi khi lấy dữ liệu: {str(e)}'}), 500
+
+@app.route('/api/page-posts-insights', methods=['GET'])
+def get_page_posts_insights():
+    """Lấy dữ liệu insights chi tiết của posts với bộ lọc."""
+    try:
+        page_id = (os.getenv('FB_PAGE_ID') or os.getenv('PAGE_ID') or '').strip()
+        access_token = get_access_token()
+        
+        if not page_id or not access_token:
+            return jsonify({'error': 'PAGE_ID hoặc ACCESS_TOKEN chưa được cấu hình'}), 400
+        
+        # Lấy tham số từ request
+        since = request.args.get('since', '').strip()
+        until = request.args.get('until', '').strip()
+        post_type = request.args.get('post_type', 'all').strip()
+        limit = int(request.args.get('limit', '50'))
+        
+        # Nếu không có thời gian, lấy 30 ngày gần nhất
+        if not since or not until:
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=30)
+            since = start_date.strftime('%Y-%m-%d')
+            until = end_date.strftime('%Y-%m-%d')
+        
+        base_url = "https://graph.facebook.com/v23.0"
+        
+        # Lấy page posts với insights chi tiết
+        posts_url = f"{base_url}/{page_id}/posts"
+        posts_params = {
+            'access_token': access_token,
+            'fields': 'id,message,created_time,type,permalink_url,insights.metric(post_impressions,post_engaged_users,post_clicks,post_reactions_by_type_total,post_comments,post_shares)',
+            'since': since,
+            'until': until,
+            'limit': limit
+        }
+        posts_response = requests.get(posts_url, params=posts_params)
+        
+        # Xử lý lỗi posts một cách graceful
+        posts_data = {'data': []}
+        if posts_response.status_code == 200:
+            posts_data = posts_response.json()
+        else:
+            logger.warning(f"Không thể lấy posts: {posts_response.text}")
+            # Tiếp tục với dữ liệu rỗng thay vì fail
+        
+        # Xử lý posts data
+        processed_posts = []
+        content_types = {}
+        total_metrics = {
+            'impressions': 0,
+            'engagement': 0,
+            'clicks': 0,
+            'reactions': 0,
+            'comments': 0,
+            'shares': 0
+        }
+        
+        for post in posts_data.get('data', []):
+            post_type_current = post.get('type', 'unknown')
+            
+            # Lọc theo post type nếu được chỉ định
+            if post_type != 'all' and post_type != post_type_current:
+                continue
+            
+            # Đếm content types
+            content_types[post_type_current] = content_types.get(post_type_current, 0) + 1
+            
+            # Xử lý insights của post
+            insights = post.get('insights', {}).get('data', [])
+            post_metrics = {}
+            
+            for insight in insights:
+                metric_name = insight.get('name')
+                metric_value = insight.get('values', [{}])[0].get('value', 0)
+                post_metrics[metric_name] = metric_value
+            
+            # Tính tổng các metrics
+            impressions = post_metrics.get('post_impressions', 0)
+            engagement = post_metrics.get('post_engaged_users', 0)
+            clicks = post_metrics.get('post_clicks', 0)
+            reactions = post_metrics.get('post_reactions_by_type_total', 0)
+            comments = post_metrics.get('post_comments', 0)
+            shares = post_metrics.get('post_shares', 0)
+            
+            total_metrics['impressions'] += impressions
+            total_metrics['engagement'] += engagement
+            total_metrics['clicks'] += clicks
+            total_metrics['reactions'] += reactions
+            total_metrics['comments'] += comments
+            total_metrics['shares'] += shares
+            
+            processed_post = {
+                'id': post.get('id'),
+                'message': post.get('message', '')[:100] + '...' if len(post.get('message', '')) > 100 else post.get('message', ''),
+                'full_message': post.get('message', ''),
+                'created_time': post.get('created_time'),
+                'type': post_type_current,
+                'permalink_url': post.get('permalink_url'),
+                'impressions': impressions,
+                'engagement': engagement,
+                'clicks': clicks,
+                'reactions': reactions,
+                'comments': comments,
+                'shares': shares,
+                'total_engagement': engagement + reactions + comments + shares
+            }
+            
+            processed_posts.append(processed_post)
+        
+        # Sắp xếp posts theo các tiêu chí khác nhau
+        top_by_impressions = sorted(processed_posts, key=lambda x: x['impressions'], reverse=True)[:5]
+        top_by_likes = sorted(processed_posts, key=lambda x: x['reactions'], reverse=True)[:5]
+        top_by_clicks = sorted(processed_posts, key=lambda x: x['clicks'], reverse=True)[:5]
+        top_by_engagement = sorted(processed_posts, key=lambda x: x['total_engagement'], reverse=True)[:5]
+        
+        # Tạo response data
+        response_data = {
+            'date_range': {
+                'since': since,
+                'until': until
+            },
+            'filter_applied': {
+                'post_type': post_type,
+                'limit': limit
+            },
+            'summary_metrics': total_metrics,
+            'content_types': content_types,
+            'total_posts': len(processed_posts),
+            'top_posts': {
+                'by_impressions': top_by_impressions,
+                'by_likes': top_by_likes,
+                'by_clicks': top_by_clicks,
+                'by_engagement': top_by_engagement
+            },
+            'all_posts': processed_posts
+        }
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error in get_page_posts_insights: {str(e)}")
+        return jsonify({'error': f'Lỗi khi lấy dữ liệu posts: {str(e)}'}), 500
+
+@app.route('/api/test', methods=['GET'])
+def test_api():
+    """Test API endpoint để kiểm tra server hoạt động."""
+    return jsonify({
+        'status': 'success',
+        'message': 'API server is working',
+        'timestamp': datetime.now().isoformat()
+    })
+
+@app.route('/api/post-details/<post_id>', methods=['GET'])
+def get_post_details(post_id):
+    """Lấy thông tin chi tiết của một post bao gồm attachments và nội dung."""
+    try:
+        access_token = get_access_token()
+        
+        if not access_token:
+            return jsonify({'error': 'ACCESS_TOKEN chưa được cấu hình'}), 400
+
+        base_url = "https://graph.facebook.com/v23.0"
+        
+        # Lấy thông tin chi tiết của post
+        post_url = f"{base_url}/{post_id}"
+        post_params = {
+            'access_token': access_token,
+            'fields': 'id,message,created_time,attachments,comments,likes.summary(true)'
+        }
+        
+        response = requests.get(post_url, params=post_params)
+        
+        if response.status_code != 200:
+            return jsonify({'error': f'Không thể lấy thông tin post: {response.text}'}), 400
+        
+        post_data = response.json()
+        
+        return jsonify(post_data)
+        
+    except Exception as e:
+        logger.error(f"Error in get_post_details: {str(e)}")
+        return jsonify({'error': f'Lỗi: {str(e)}'}), 500
+
+@app.route('/api/test-post-insights', methods=['GET'])
+def test_post_insights():
+    """Test endpoint để kiểm tra post insights."""
+    try:
+        page_id = (os.getenv('FB_PAGE_ID') or os.getenv('PAGE_ID') or '').strip()
+        access_token = get_access_token()
+
+        if not page_id or not access_token:
+            return jsonify({'error': 'PAGE_ID hoặc ACCESS_TOKEN chưa được cấu hình'}), 400
+
+        base_url = "https://graph.facebook.com/v23.0"
+        
+        # Lấy 1 post để test
+        posts_url = f"{base_url}/{page_id}/feed"
+        posts_params = {
+            'access_token': access_token,
+            'limit': 1
+        }
+        posts_response = requests.get(posts_url, params=posts_params)
+        
+        if posts_response.status_code != 200:
+            return jsonify({'error': f'Không thể lấy posts: {posts_response.text}'}), 400
+        
+        posts_data = posts_response.json()
+        posts = posts_data.get('data', [])
+        
+        if not posts:
+            return jsonify({'error': 'Không có posts'}), 400
+        
+        post = posts[0]
+        post_id = post['id']
+        
+        # Lấy insights cho post này
+        insights_url = f"{base_url}/{post_id}/insights"
+        insights_params = {
+            'access_token': access_token,
+            'metric': 'post_impressions,post_engaged_users,post_clicks,post_reactions_by_type_total'
+        }
+        insights_response = requests.get(insights_url, params=insights_params)
+        
+        if insights_response.status_code != 200:
+            return jsonify({'error': f'Không thể lấy insights: {insights_response.text}'}), 400
+        
+        insights_data = insights_response.json()
+        
+        return jsonify({
+            'post_id': post_id,
+            'post_message': post.get('message', '')[:100],
+            'post_created_time': post.get('created_time'),
+            'insights': insights_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in test_post_insights: {str(e)}")
+        return jsonify({'error': f'Lỗi: {str(e)}'}), 500
+
+@app.route('/api/page-insights-demo', methods=['GET'])
+def get_page_insights_demo():
+    """Demo API endpoint với dữ liệu mẫu để test frontend."""
+    try:
+        # Tạo dữ liệu mẫu
+        demo_data = {
+            'page_info': {
+                'name': 'Demo Facebook Page',
+                'fan_count': 1250,
+                'new_like_count': 45
+            },
+            'date_range': {
+                'since': '2024-09-01',
+                'until': '2024-10-01'
+            },
+            'summary_metrics': {
+                'total_impressions': 45678,
+                'total_engagements': 2345,
+                'total_video_views': 1234,
+                'total_posts': 25
+            },
+            'daily_data': [
+                {
+                    'date': '2024-09-01',
+                    'page_impressions': 1200,
+                    'page_post_engagements': 150,
+                    'page_video_views': 80,
+                    'page_impressions_unique': 950
+                },
+                {
+                    'date': '2024-09-02',
+                    'page_impressions': 1350,
+                    'page_post_engagements': 180,
+                    'page_video_views': 120,
+                    'page_impressions_unique': 1100
+                },
+                {
+                    'date': '2024-09-03',
+                    'page_impressions': 980,
+                    'page_post_engagements': 120,
+                    'page_video_views': 60,
+                    'page_impressions_unique': 780
+                }
+            ],
+            'top_posts': [
+                {
+                    'id': 'post_1',
+                    'message': 'Bài viết demo với nội dung hay...',
+                    'created_time': '2024-09-15T10:30:00+0000',
+                    'type': 'photo',
+                    'permalink_url': 'https://facebook.com/demo',
+                    'impressions': 2500,
+                    'engagement': 180,
+                    'clicks': 45,
+                    'reactions': 120
+                },
+                {
+                    'id': 'post_2',
+                    'message': 'Video demo về sản phẩm mới...',
+                    'created_time': '2024-09-20T14:20:00+0000',
+                    'type': 'video',
+                    'permalink_url': 'https://facebook.com/demo2',
+                    'impressions': 3200,
+                    'engagement': 250,
+                    'clicks': 80,
+                    'reactions': 200
+                }
+            ],
+            'content_types': {
+                'photo': 15,
+                'video': 8,
+                'link': 2
+            },
+            'filter_applied': {
+                'post_type': 'all',
+                'since': '2024-09-01',
+                'until': '2024-10-01'
+            }
+        }
+        
+        return jsonify(demo_data)
+        
+    except Exception as e:
+        logger.error(f"Error in get_page_insights_demo: {str(e)}")
+        return jsonify({'error': f'Lỗi khi tạo dữ liệu demo: {str(e)}'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5002))

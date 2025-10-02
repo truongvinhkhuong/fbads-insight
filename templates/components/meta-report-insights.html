@@ -1,212 +1,328 @@
-<!-- Meta Report Insights Section -->
+<!-- Social Media Report Section -->
 <div class="bg-white rounded-lg shadow mt-8 border border-gray-100">
-    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+    <!-- Header Section -->
+    <div class="px-6 py-4 social-media-header border-b border-gray-200">
+        <div class="flex items-center justify-between">
         <div>
-            <h3 class="text-lg font-semibold">Tracking Meta Report Insight</h3>
-            <p class="text-sm text-gray-600">Mục tiêu: Tracking Performance mỗi tháng - Đo lường hiệu quả xây kênh fanpage, content</p>
-            <p class="text-xs text-gray-500 mt-1">Dimensions: Thương hiệu, Định dạng nội dung, Thời gian</p>
+                <h1 class="text-2xl font-bold text-black">SOCIAL MEDIA REPORT</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600">Post type:</label>
+                    <select id="post-type-filter" class="border px-2 py-1 rounded text-sm">
+                        <option value="all">Tất cả</option>
+                        <option value="photo">Hình ảnh</option>
+                        <option value="video">Video</option>
+                        <option value="link">Link</option>
+                        <option value="status">Status</option>
+                        <option value="album">Album</option>
+                    </select>
         </div>
-        <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2 text-sm">
-                <label>Khoảng thời gian:</label>
-                <select id="meta-report-date-preset" class="border px-2 py-1 rounded">
-                    <option value="last_30d" selected>30 ngày</option>
-                    <option value="last_90d">90 ngày</option>
-                    <option value="last_180d">180 ngày</option>
-                    <option value="lifetime">Lifetime</option>
+                <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-600">Date (Tháng):</label>
+                    <select id="date-preset-filter" class="border px-2 py-1 rounded text-sm">
+                        <option value="last_30d">30 ngày gần nhất</option>
+                        <option value="last_90d">90 ngày gần nhất</option>
+                        <option value="last_180d">180 ngày gần nhất</option>
+                        <option value="custom">Tùy chỉnh</option>
                 </select>
             </div>
-            <button id="btn-refresh-meta-report" class="px-3 py-1 text-white rounded btn-primary text-sm">Cập nhật</button>
-            <button id="btn-export-meta-report" class="px-3 py-1 text-sm rounded border" style="border-color:#247ba0;color:#247ba0;">Export CSV</button>
-            <div class="flex items-center gap-2 text-sm ml-2">
-                <label for="meta-ai-since" class="text-gray-600">Since:</label>
-                <input id="meta-ai-since" type="date" class="border px-2 py-1 rounded" />
-                <label for="meta-ai-until" class="text-gray-600">Until:</label>
-                <input id="meta-ai-until" type="date" class="border px-2 py-1 rounded" />
-                <button id="btn-meta-content-ai" class="px-3 py-1 text-white rounded btn-primary text-sm">AI Content Insight</button>
+                <div id="custom-date-inputs" class="flex items-center gap-2 hidden">
+                    <input type="date" id="since-date" class="border px-2 py-1 rounded text-sm">
+                    <span class="text-sm text-gray-600">đến</span>
+                    <input type="date" id="until-date" class="border px-2 py-1 rounded text-sm">
+                </div>
+                <button id="apply-filters-btn" class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+                    Áp dụng
+                </button>
+                <div class="text-sm text-gray-600">
+                    <span id="date-range-display">30 ngày gần nhất</span>
+                </div>
             </div>
         </div>
     </div>
     
-    <!-- Meta Report Summary Cards -->
-    <div class="p-6 border-b border-gray-200">
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <div class="meta-report-metric bg-blue-50">
-                <div class="text-xs text-blue-600 font-medium">Tổng thương hiệu</div>
-                <div id="meta-total-brands" class="text-lg font-bold text-blue-800">0</div>
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+        <!-- Fanpage Insight Overview (Left Column) -->
+        <div class="lg:col-span-1">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="text-orange-500">🏁</span>
+                <h3 class="text-lg font-semibold text-gray-800">Fanpage insight overview</h3>
             </div>
-            <div class="meta-report-metric bg-green-50">
-                <div class="text-xs text-green-600 font-medium">Định dạng nội dung</div>
-                <div id="meta-total-content-formats" class="text-lg font-bold text-green-800">0</div>
+            <div class="mb-4">
+                <label class="text-sm text-gray-600">Name:</label>
+                <input type="text" class="border px-2 py-1 rounded text-sm w-full" placeholder="Nhập tên fanpage" />
             </div>
-            <div class="meta-report-metric bg-purple-50">
-                <div class="text-xs text-purple-600 font-medium">Tổng chi tiêu</div>
-                <div id="meta-total-spend" class="text-lg font-bold text-purple-800">$0</div>
+            
+            <!-- Số liệu tổng quan -->
+            <div class="mb-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-3">Số liệu tổng quan</h4>
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- Total Likes -->
+                    <div class="metric-card primary p-4 rounded-lg">
+                        <div class="text-xs opacity-90">Total Likes</div>
+                        <div id="total-likes" class="text-2xl font-bold">993</div>
             </div>
-            <div class="meta-report-metric bg-orange-50">
-                <div class="text-xs text-orange-600 font-medium">Tổng Reach</div>
-                <div id="meta-total-reach" class="text-lg font-bold text-orange-800">0</div>
+                    
+                    <!-- New likes -->
+                    <div class="bg-white border border-gray-200 p-4 rounded-lg">
+                        <div class="text-xs text-gray-600">New likes</div>
+                        <div id="new-likes" class="text-xl font-bold text-gray-900">347</div>
+                        <div class="text-xs text-red-500">-392</div>
+                        <div class="progress-bar w-full h-1 rounded mt-2">
+                            <div class="progress-fill bg-red-400" style="width: 60%"></div>
+        </div>
+    </div>
+
+                    <!-- Page Impressions -->
+                    <div class="bg-white border border-gray-200 p-4 rounded-lg">
+                        <div class="text-xs text-gray-600">Page Impressions</div>
+                        <div id="page-impressions" class="text-xl font-bold text-gray-900">593.195</div>
+                        <div class="text-xs text-green-500">↑ 364.3%</div>
+                        <div class="progress-bar w-full h-1 rounded mt-2">
+                            <div class="progress-fill bg-green-400" style="width: 85%"></div>
+                        </div>
+    </div>
+    
+                    <!-- Page Video Views -->
+                    <div class="bg-white border border-gray-200 p-4 rounded-lg">
+                        <div class="text-xs text-gray-600">Page Video Views</div>
+                        <div id="page-video-views" class="text-xl font-bold text-gray-900">11.362</div>
+                        <div class="text-xs text-green-500">↑ 11.1%</div>
+                        <div class="progress-bar w-full h-1 rounded mt-2">
+                            <div class="progress-fill bg-blue-400" style="width: 45%"></div>
+        </div>
+    </div>
+    
+                    <!-- Post Engagement -->
+                    <div class="bg-white border border-gray-200 p-4 rounded-lg">
+                        <div class="flex items-center gap-1 mb-1">
+                            <div class="text-xs text-gray-600">Post Engagement</div>
+                            <span class="text-xs">📊</span>
+                </div>
+                        <div id="post-engagement" class="text-xl font-bold text-gray-900">24.228</div>
+                        <div class="text-xs text-green-500">↑ 133.7%</div>
+                        <div class="progress-bar w-full h-1 rounded mt-2">
+                            <div class="progress-fill bg-purple-400" style="width: 75%"></div>
+        </div>
+    </div>
+    
+                    <!-- Post Clicks -->
+                    <div class="bg-white border border-gray-200 p-4 rounded-lg">
+                        <div class="flex items-center gap-1 mb-1">
+                            <div class="text-xs text-gray-600">Post Clicks</div>
+                            <span class="text-xs">🖱️</span>
             </div>
-            <div class="meta-report-metric bg-red-50">
-                <div class="text-xs text-red-600 font-medium">Tổng Engagement</div>
-                <div id="meta-total-engagement" class="text-lg font-bold text-red-800">0</div>
+                        <div id="post-clicks" class="text-xl font-bold text-gray-900">9.544</div>
+                        <div class="text-xs text-green-500">↑ 130.8%</div>
+                        <div class="progress-bar w-full h-1 rounded mt-2">
+                            <div class="progress-fill bg-orange-400" style="width: 65%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Post Comment -->
+                    <div class="bg-white border border-gray-200 p-4 rounded-lg">
+                        <div class="flex items-center gap-1 mb-1">
+                            <div class="text-xs text-gray-600">Post Comment</div>
+                            <span class="text-xs">💬</span>
+                        </div>
+                        <div id="post-comment" class="text-xl font-bold text-gray-900">355</div>
+                        <div class="text-xs text-green-500">↑ 361.0%</div>
+                        <div class="progress-bar w-full h-1 rounded mt-2">
+                            <div class="progress-fill bg-pink-400" style="width: 90%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Post Like (Total) -->
+                    <div class="bg-white border border-gray-200 p-4 rounded-lg">
+                        <div class="flex items-center gap-1 mb-1">
+                            <div class="text-xs text-gray-600">Post Like (Total)</div>
+                            <span class="text-xs">👍</span>
+                        </div>
+                        <div id="post-like-total" class="text-xl font-bold text-gray-900">2.067</div>
+                        <div class="text-xs text-green-500">↑ 415.5%</div>
+                        <div class="progress-bar w-full h-1 rounded mt-2">
+                            <div class="progress-fill bg-green-400" style="width: 95%"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="meta-report-metric bg-indigo-50">
-                <div class="text-xs text-indigo-600 font-medium">CTR Trung bình</div>
-                <div id="meta-avg-ctr" class="text-lg font-bold text-indigo-800">0%</div>
+        </div>
+
+        <!-- Daily Interaction Chart and Table (Middle and Right Columns) -->
+        <div class="lg:col-span-2" style="display: flex; flex-direction: column; gap: 4rem;">
+            <!-- Chart Section -->
+            <div style="margin-bottom: 3rem;">
+                <h3 class="text-lg font-semibold text-gray-800 mb-6">Tương tác trang theo ngày</h3>
+                
+                <!-- Chart Container -->
+                <div class="chart-container bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <div class="h-80">
+                        <canvas id="daily-interaction-chart"></canvas>
+                    </div>
+                    <div class="flex justify-center gap-4 md:gap-6 mt-6 text-xs md:text-sm flex-wrap">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-0.5 bg-blue-500"></div>
+                            <span>New likes</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-gray-400"></div>
+                            <span>Page Impressions</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-pink-400"></div>
+                            <span class="hidden sm:inline">Page Post Engagements</span>
+                            <span class="sm:hidden">Engagements</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-orange-400"></div>
+                            <span>Post Clicks</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Table Section -->
+            <div style="margin-top: 3rem;">
+                <!-- Daily Interaction Table -->
+                <div class="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="data-table min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Page Impressions</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Page Post Engagements</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Post Clicks</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Post Comment</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Page Video Views</th>
+                            </tr>
+                        </thead>
+                        <tbody id="daily-interaction-table" class="bg-white divide-y divide-gray-200">
+                            <tr class="highlight-row">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">03/09</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">14.813</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">434</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">1.182</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">64</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">27</td>
+                            </tr>
+                            <tr class="highlight-row">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">18/08</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">14.135</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">488</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">0</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">0</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">2.278</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">31/08</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">13.097</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">332</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">1</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">0</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">26</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">19/08</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">12.958</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">282</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">0</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">0</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">2.363</td>
+                            </tr>
+                            <tr class="bg-gray-50 font-semibold">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">Total</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">593.195</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">24.228</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">9.544</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">355</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">11.362</td>
+                            </tr>
+                        </tbody>
+                        </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Monthly Performance Table -->
-    <div class="overflow-x-auto meta-report-table">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
-            <thead class="bg-gray-50 sticky top-0">
-                <tr>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sticky left-0 bg-gray-50">Tháng</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thương hiệu</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Định dạng nội dung</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chiến dịch</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chi tiêu</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reach</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Impressions</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clicks</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CTR</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPC</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engagement Rate</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Video Views</th>
-                    <th class="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Link Clicks</th>
-                </tr>
-            </thead>
-            <tbody id="meta-report-table" class="bg-white divide-y divide-gray-200">
-                <tr>
-                    <td colspan="14" class="px-6 py-4 text-center text-gray-500">Đang tải dữ liệu...</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    
-    <!-- Brand Analysis Section -->
-    <div class="p-6 border-t border-gray-200">
-        <h4 class="text-lg font-semibold mb-4 text-gray-800">Phân tích theo Thương hiệu</h4>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-                <h5 class="text-sm font-medium text-gray-700 mb-3">Top Thương hiệu theo Chi tiêu</h5>
-                <div id="brand-analysis-list" class="space-y-2">
-                    <!-- Brand analysis will be populated here -->
-                </div>
-            </div>
-            <div>
-                <h5 class="text-sm font-medium text-gray-700 mb-3">Biểu đồ Thương hiệu</h5>
-                <div class="h-64 meta-report-chart-container">
-                    <canvas id="brand-chart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Content Format Analysis Section -->
-    <div class="p-6 border-t border-gray-200">
-        <h4 class="text-lg font-semibold mb-4 text-gray-800">Phân tích theo Định dạng Nội dung</h4>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-                <h5 class="text-sm font-medium text-gray-700 mb-3">Top Định dạng theo Performance Score</h5>
-                <div id="content-analysis-list" class="space-y-2">
-                    <!-- Content analysis will be populated here -->
-                </div>
-            </div>
-            <div>
-                <h5 class="text-sm font-medium text-gray-700 mb-3">Biểu đồ Định dạng Nội dung</h5>
-                <div class="h-64 meta-report-chart-container">
-                    <canvas id="content-format-chart"></canvas>
-                </div>
+    <!-- Bottom Section: Content Overview and TOP 5 CONTENT -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 border-t border-gray-200">
+        <!-- Content Overview (Left) -->
+        <div class="content-overview">
+            <h4 class="text-lg font-semibold text-gray-800 mb-4">Số lượng Content</h4>
+            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Số lượ...</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">album</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">25</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">photo</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">19</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">video_inline</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">2</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">share</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">2</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">native_templa...</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">1</td>
+                        </tr>
+                        <tr>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">video_direct_r...</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">1</td>
+                        </tr>
+                        <tr class="bg-gray-50 font-semibold">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">Total</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">50</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
-    </div>
-    
-    <!-- Agency Report (Funnel) -->
-    <div class="p-6 border-t border-gray-200">
-        <h4 class="text-lg font-semibold mb-4 text-gray-800">Report đại lý</h4>
-        <div class="grid grid-cols-1 gap-8 items-start lg:flex">
-            <div class="bg-white" style="overflow: visible; flex: 1 1 auto;">
-                <div id="agency-funnel" class="w-full flex items-center justify-center text-gray-400" style="min-height: 460px; overflow: visible;">Đang tải phễu...</div>
-            </div>
-            <div class="space-y-4 self-start" style="flex: 0 0 420px; min-width: 420px;">
-                <div class="meta-report-card">
-                    <div class="font-medium mb-2">Ngân sách và hiển thị</div>
-                    <div class="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                            <div class="text-gray-500">Lượt hiển thị</div>
-                            <div class="font-semibold" id="agency-display-impressions">0</div>
-                            <div class="text-xs text-gray-500" id="agency-display-impressions-delta">0%</div>
-                        </div>
-                        <div>
-                            <div class="text-gray-500">Lượt tiếp cận</div>
-                            <div class="font-semibold" id="agency-display-reach">0</div>
-                            <div class="text-xs text-gray-500" id="agency-display-reach-delta">0%</div>
-                        </div>
-                        <div>
-                            <div class="text-gray-500">CTR (tất cả)</div>
-                            <div class="font-semibold" id="agency-display-ctr">0%</div>
-                            <div class="text-xs text-gray-500" id="agency-display-ctr-delta">0%</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="meta-report-card">
-                    <div class="font-medium mb-2">Chỉ số tương tác</div>
-                    <div class="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <div class="text-gray-500">Lượt tương tác</div>
-                            <div class="font-semibold" id="agency-engagement-total">0</div>
-                            <div class="text-xs text-gray-500" id="agency-engagement-total-delta">0%</div>
-                        </div>
-                        <div>
-                            <div class="text-gray-500">Lượt click vào liên kết</div>
-                            <div class="font-semibold" id="agency-engagement-clicks">0</div>
-                            <div class="text-xs text-gray-500" id="agency-engagement-clicks-delta">0%</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="meta-report-card">
-                    <div class="font-medium mb-2">Tỉ lệ chuyển đổi</div>
-                    <div class="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                            <div class="text-gray-500">Bắt đầu trò chuyện</div>
-                            <div class="font-semibold" id="agency-conv-messages">0</div>
-                            <div class="text-xs text-gray-500" id="agency-conv-messages-delta">0%</div>
-                        </div>
-                        <div>
-                            <div class="text-gray-500">Lượt mua trên meta</div>
-                            <div class="font-semibold" id="agency-conv-purchase">0</div>
-                            <div class="text-xs text-gray-500" id="agency-conv-purchase-delta">0%</div>
-                        </div>
-                        <div>
-                            <div class="text-gray-500">Giá trị chuyển đổi</div>
-                            <div class="font-semibold" id="agency-conv-value">0</div>
-                            <div class="text-xs text-gray-500" id="agency-conv-value-delta">0%</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Monthly Trends Chart -->
-    <div class="p-6 border-t border-gray-200">
-        <h4 class="text-lg font-semibold mb-4 text-gray-800">Xu hướng Hiệu suất theo Tháng</h4>
-        <div class="h-80 meta-report-chart-container">
-            <canvas id="monthly-trends-chart"></canvas>
+        <!-- TOP 5 CONTENT (Right) -->
+        <div>
+            <h4 class="text-lg font-semibold text-gray-800 mb-4">TOP 5 CONTENT</h4>
+            
+            <!-- Top 5 by Impressions -->
+            <div class="mb-6" data-section="impressions">
+                <h5 class="text-sm font-medium text-gray-700 mb-3">Top 5 by Impressions</h5>
+                <div class="space-y-2">
+                    <!-- Content will be populated by JavaScript with real Facebook data -->
+                </div>
+            </div>
+
+            <!-- Top 5 by Likes -->
+            <div class="mb-6" data-section="likes">
+                <h5 class="text-sm font-medium text-gray-700 mb-3">Top 5 by Engagement</h5>
+                <div class="space-y-2">
+                    <!-- Content will be populated by JavaScript with real Facebook data -->
         </div>
     </div>
     
-    <!-- Content Insights (AI) -->
-    <div class="p-6 border-t border-gray-200">
-        <h4 class="text-lg font-semibold mb-4 text-gray-800">AI Content Insights (theo Page Posts)</h4>
-        <div id="meta-ai-content" class="meta-report-card whitespace-pre-wrap text-sm"></div>
-        <div class="mt-4">
-            <h5 class="text-sm font-medium text-gray-700 mb-3">Bài viết tiêu biểu</h5>
-            <div id="meta-ai-posts" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            <!-- Top 5 by Clicks -->
+            <div data-section="clicks">
+                <h5 class="text-sm font-medium text-gray-700 mb-3">Top 5 by Clicks</h5>
+                <div class="space-y-2">
+                    <!-- Content will be populated by JavaScript with real Facebook data -->
+                </div>
+            </div>
         </div>
     </div>
 </div>

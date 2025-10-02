@@ -4,27 +4,682 @@ let metaReportData = null;
 function initializeMetaReportInsights() {
     console.log('Initializing Meta Report Insights...');
     
+    // Initialize event listeners for filters
+    initializeFilters();
+    
+    // Initialize the daily interaction chart
+    initializeDailyInteractionChart();
+    
     // Load initial data
-    loadMetaReportData();
+    loadPageInsightsData();
     
-    // Event listeners
-    const refreshBtn = document.getElementById('btn-refresh-meta-report');
-    const exportBtn = document.getElementById('btn-export-meta-report');
-    const datePreset = document.getElementById('meta-report-date-preset');
-    const aiBtn = document.getElementById('btn-meta-content-ai');
+    console.log('Meta Report Insights initialized successfully');
     
-    console.log('Meta Report elements found:', {
-        refreshBtn: !!refreshBtn,
-        exportBtn: !!exportBtn,
-        datePreset: !!datePreset
+    // Test API connection
+    testAPIConnection();
+}
+
+// Test API connection
+async function testAPIConnection() {
+    try {
+        const response = await fetch('/api/test');
+        const data = await response.json();
+        console.log('API Test Result:', data);
+    } catch (error) {
+        console.error('API Test Failed:', error);
+    }
+}
+
+// Initialize filter functionality
+function initializeFilters() {
+    const datePresetFilter = document.getElementById('date-preset-filter');
+    const customDateInputs = document.getElementById('custom-date-inputs');
+    const applyFiltersBtn = document.getElementById('apply-filters-btn');
+    
+    if (datePresetFilter) {
+        datePresetFilter.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                customDateInputs.classList.remove('hidden');
+            } else {
+                customDateInputs.classList.add('hidden');
+            }
+        });
+    }
+    
+    if (applyFiltersBtn) {
+        applyFiltersBtn.addEventListener('click', function() {
+            loadPageInsightsData();
+        });
+    }
+    
+    // Demo data checkbox
+    const useDemoDataCheckbox = document.getElementById('use-demo-data');
+    if (useDemoDataCheckbox) {
+        useDemoDataCheckbox.addEventListener('change', function() {
+            loadPageInsightsData();
+        });
+    }
+    
+    // Set default date range
+    const sinceDate = document.getElementById('since-date');
+    const untilDate = document.getElementById('until-date');
+    
+    if (sinceDate && untilDate) {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 30);
+        
+        sinceDate.value = startDate.toISOString().split('T')[0];
+        untilDate.value = endDate.toISOString().split('T')[0];
+    }
+}
+
+// Initialize Daily Interaction Chart
+function initializeDailyInteractionChart() {
+    const ctx = document.getElementById('daily-interaction-chart');
+    if (!ctx) return;
+    
+    // Sample data for the chart (matching the image)
+    const dates = ['01/06', '05/06', '10/06', '15/06', '20/06', '25/06', '01/07', '05/07', '10/07', '15/07', '20/07', '25/07', '01/08', '05/08', '10/08', '15/08', '18/08', '19/08', '20/08', '25/08', '31/08', '03/09', '05/09', '10/09', '15/09', '20/09', '25/09', '29/09'];
+    
+    // Sample data for the chart
+    const newLikes = [5, 8, 12, 15, 18, 22, 25, 28, 32, 35, 38, 42, 45, 48, 52, 55, 58, 61, 64, 67, 70, 73, 76, 79, 82, 85, 88, 91];
+    const pageImpressions = [8000, 12000, 15000, 18000, 20000, 22000, 25000, 28000, 30000, 32000, 35000, 38000, 40000, 42000, 45000, 48000, 14135, 12958, 50000, 52000, 13097, 14813, 55000, 58000, 60000, 62000, 65000, 68000];
+    const pagePostEngagements = [200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 488, 282, 1800, 1900, 332, 434, 2000, 2100, 2200, 2300, 2400, 2500];
+    const postClicks = [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 0, 0, 900, 950, 1, 1182, 1000, 1050, 1100, 1150, 1200, 1250];
+    
+    // Destroy existing chart if it exists
+    if (window.dailyInteractionChart) {
+        window.dailyInteractionChart.destroy();
+    }
+    
+    window.dailyInteractionChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [
+                {
+                    label: 'New likes',
+                    data: newLikes,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxTicksLimit: 10
+                    }
+                },
+                y: {
+                    display: true,
+                    beginAtZero: true,
+                    grid: {
+                        color: '#e5e7eb'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            if (value >= 1000) {
+                                return (value / 1000) + 'N';
+                            }
+                            return value;
+                        }
+                    }
+                }
+            },
+            elements: {
+                point: {
+                    hoverRadius: 6
+                }
+            }
+        }
     });
     
-    if (refreshBtn) refreshBtn.addEventListener('click', loadMetaReportData);
-    if (exportBtn) exportBtn.addEventListener('click', exportMetaReportData);
-    if (datePreset) datePreset.addEventListener('change', loadMetaReportData);
-    if (aiBtn) aiBtn.addEventListener('click', loadMetaContentInsights);
-    // Auto-run content insights if button exists
-    if (aiBtn) loadMetaContentInsights();
+    // Add bar chart overlays for other metrics
+    addBarOverlays(ctx, dates, pageImpressions, pagePostEngagements, postClicks);
+}
+
+// Add bar chart overlays to the existing chart
+function addBarOverlays(ctx, dates, impressions, engagements, clicks) {
+    const chart = window.dailyInteractionChart;
+    if (!chart) return;
+    
+    // Add datasets for bar charts
+    chart.data.datasets.push(
+        {
+            label: 'Page Impressions',
+            data: impressions,
+            type: 'bar',
+            backgroundColor: 'rgba(156, 163, 175, 0.6)',
+            borderColor: 'rgba(156, 163, 175, 1)',
+            borderWidth: 1,
+            yAxisID: 'y1'
+        },
+        {
+            label: 'Page Post Engagements',
+            data: engagements,
+            type: 'bar',
+            backgroundColor: 'rgba(244, 114, 182, 0.6)',
+            borderColor: 'rgba(244, 114, 182, 1)',
+            borderWidth: 1,
+            yAxisID: 'y1'
+        },
+        {
+            label: 'Post Clicks',
+            data: clicks,
+            type: 'bar',
+            backgroundColor: 'rgba(251, 146, 60, 0.6)',
+            borderColor: 'rgba(251, 146, 60, 1)',
+            borderWidth: 1,
+            yAxisID: 'y1'
+        }
+    );
+    
+    // Add secondary y-axis for bar charts
+    chart.options.scales.y1 = {
+        type: 'linear',
+        display: true,
+        position: 'right',
+        grid: {
+            drawOnChartArea: false,
+        },
+        ticks: {
+            callback: function(value) {
+                if (value >= 1000) {
+                    return (value / 1000) + 'N';
+                }
+                return value;
+            }
+        }
+    };
+    
+    chart.update();
+}
+
+// Load real data from API
+async function loadPageInsightsData() {
+    try {
+        console.log('Loading page insights data...');
+        
+        // Get filter values
+        const postType = document.getElementById('post-type-filter')?.value || 'all';
+        const datePreset = document.getElementById('date-preset-filter')?.value || 'last_30d';
+        const sinceDate = document.getElementById('since-date')?.value;
+        const untilDate = document.getElementById('until-date')?.value;
+        
+        // Build API URL - sử dụng demo API nếu checkbox được chọn
+        const useDemoData = document.getElementById('use-demo-data')?.checked || false;
+        let apiUrl = useDemoData ? '/api/page-insights-demo?' : '/api/page-insights?';
+        const params = new URLSearchParams();
+        
+        if (postType !== 'all') {
+            params.append('post_type', postType);
+        }
+        
+        if (datePreset === 'custom' && sinceDate && untilDate) {
+            params.append('since', sinceDate);
+            params.append('until', untilDate);
+        } else {
+            // Use preset dates
+            const endDate = new Date();
+            let startDate = new Date();
+            
+            switch (datePreset) {
+                case 'last_90d':
+                    startDate.setDate(startDate.getDate() - 90);
+                    break;
+                case 'last_180d':
+                    startDate.setDate(startDate.getDate() - 180);
+                    break;
+                default: // last_30d
+                    startDate.setDate(startDate.getDate() - 30);
+                    break;
+            }
+            
+            params.append('since', startDate.toISOString().split('T')[0]);
+            params.append('until', endDate.toISOString().split('T')[0]);
+        }
+        
+        apiUrl += params.toString();
+        
+        // Show loading state
+        showLoadingState();
+        
+        // Fetch data
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('Response is not JSON. Server may be returning an HTML error page.');
+        }
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        // Update UI with real data
+        updatePageInsightsUI(data);
+        updateDailyInteractionChartWithRealData(data);
+        updateTopContentWithRealData(data);
+        
+        // Update date range display
+        updateDateRangeDisplay(data.date_range);
+        
+        // Show demo data notice if using demo
+        showDataSourceNotice(useDemoData);
+        
+        console.log('Page insights data loaded successfully');
+        
+    } catch (error) {
+        console.error('Error loading page insights:', error);
+        showErrorState(error.message);
+    }
+}
+
+// Show loading state
+function showLoadingState() {
+    const loadingElements = [
+        document.getElementById('total-likes'),
+        document.getElementById('new-likes'),
+        document.getElementById('page-impressions'),
+        document.getElementById('page-video-views'),
+        document.getElementById('post-engagement'),
+        document.getElementById('post-clicks'),
+        document.getElementById('post-comment'),
+        document.getElementById('post-like-total')
+    ];
+    
+    loadingElements.forEach(el => {
+        if (el) el.textContent = '...';
+    });
+}
+
+// Show error state
+function showErrorState(message) {
+    const errorElements = [
+        document.getElementById('total-likes'),
+        document.getElementById('new-likes'),
+        document.getElementById('page-impressions'),
+        document.getElementById('page-video-views'),
+        document.getElementById('post-engagement'),
+        document.getElementById('post-clicks'),
+        document.getElementById('post-comment'),
+        document.getElementById('post-like-total')
+    ];
+    
+    errorElements.forEach(el => {
+        if (el) el.textContent = 'Error';
+    });
+    
+    console.error('Error state:', message);
+}
+
+// Update page insights UI with real data
+function updatePageInsightsUI(data) {
+    const pageInfo = data.page_info || {};
+    const summaryMetrics = data.summary_metrics || {};
+    
+    // Update fanpage name input
+    const nameInput = document.querySelector('input[placeholder="Nhập tên fanpage"]');
+    if (nameInput && pageInfo.name) {
+        nameInput.value = pageInfo.name;
+    }
+    
+    // Update metric cards với dữ liệu thực tế
+    updateElement('total-likes', formatNumber(pageInfo.fan_count || 0));
+    updateElement('new-likes', formatNumber(pageInfo.new_like_count || 0));
+    
+    // Sử dụng post impressions nếu có, fallback về page impressions
+    const displayImpressions = summaryMetrics.total_post_impressions || summaryMetrics.total_impressions || 0;
+    updateElement('page-impressions', formatNumber(displayImpressions));
+    
+    updateElement('page-video-views', formatNumber(summaryMetrics.total_video_views || 0));
+    
+    // Sử dụng post engagements nếu có, fallback về page engagements
+    const displayEngagements = summaryMetrics.total_post_engagements || summaryMetrics.total_engagements || 0;
+    updateElement('post-engagement', formatNumber(displayEngagements));
+    
+    // Sử dụng dữ liệu thực tế từ posts
+    updateElement('post-clicks', formatNumber(summaryMetrics.total_post_clicks || 0));
+    updateElement('post-comment', formatNumber((summaryMetrics.total_post_reactions || 0) * 0.3)); // Estimate comments
+    updateElement('post-like-total', formatNumber(summaryMetrics.total_post_reactions || 0));
+}
+
+// Update daily interaction chart with real data
+function updateDailyInteractionChartWithRealData(data) {
+    const dailyData = data.daily_data || [];
+    
+    if (dailyData.length === 0) return;
+    
+    // Sort by date
+    dailyData.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    const dates = dailyData.map(d => {
+        const date = new Date(d.date);
+        return `${date.getDate()}/${date.getMonth() + 1}`;
+    });
+    
+    const newLikes = dailyData.map(d => d.page_impressions_unique || 0);
+    const pageImpressions = dailyData.map(d => d.page_impressions || 0);
+    const pagePostEngagements = dailyData.map(d => d.page_post_engagements || 0);
+    const pageVideoViews = dailyData.map(d => d.page_video_views || 0);
+    
+    // Update existing chart
+    if (window.dailyInteractionChart) {
+        window.dailyInteractionChart.destroy();
+    }
+    
+    const ctx = document.getElementById('daily-interaction-chart');
+    if (!ctx) return;
+    
+    window.dailyInteractionChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [
+                {
+                    label: 'New likes',
+                    data: newLikes,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    pointHoverRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxTicksLimit: 10
+                    }
+                },
+                y: {
+                    display: true,
+                    beginAtZero: true,
+                    grid: {
+                        color: '#e5e7eb'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            if (value >= 1000) {
+                                return (value / 1000) + 'N';
+                            }
+                            return value;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Add bar overlays
+    addBarOverlays(ctx, dates, pageImpressions, pagePostEngagements, pageVideoViews);
+}
+
+// Update top content with real data
+function updateTopContentWithRealData(data) {
+    const topPosts = data.top_posts || [];
+    const contentTypes = data.content_types || {};
+    
+    // Debug: Log data for verification
+    console.log('🔍 Loading TOP 5 CONTENT with real Facebook data:', {
+        topPostsCount: topPosts.length,
+        contentTypes: contentTypes
+    });
+    
+    // Update content types table
+    updateContentTypesTable(contentTypes);
+    
+    // Update top 5 content sections
+    updateTopContentSection('impressions', topPosts, 'impressions');
+    updateTopContentSection('likes', topPosts, 'engagement');
+    updateTopContentSection('clicks', topPosts, 'clicks');
+}
+
+// Update content types table
+function updateContentTypesTable(contentTypes) {
+    const tbody = document.querySelector('.content-overview table tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    let total = 0;
+    Object.entries(contentTypes).forEach(([type, count]) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${type}</td>
+            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${count}</td>
+        `;
+        tbody.appendChild(row);
+        total += count;
+    });
+    
+    // Add total row
+    const totalRow = document.createElement('tr');
+    totalRow.className = 'bg-gray-50 font-semibold';
+    totalRow.innerHTML = `
+        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">Total</td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${total}</td>
+    `;
+    tbody.appendChild(totalRow);
+}
+
+// Update top content section
+function updateTopContentSection(sectionType, posts, metric) {
+    const section = document.querySelector(`[data-section="${sectionType}"]`);
+    if (!section) {
+        console.warn(`❌ Section with data-section="${sectionType}" not found`);
+        return;
+    }
+    
+    const top5 = posts.slice(0, 5);
+    const container = section.querySelector('.space-y-2');
+    if (!container) {
+        console.warn(`❌ Container with class "space-y-2" not found in section ${sectionType}`);
+        return;
+    }
+    
+    // Debug: Log section update
+    console.log(`✅ Updating ${sectionType} section with ${top5.length} posts using metric: ${metric}`);
+    
+    container.innerHTML = '';
+    
+    top5.forEach((post, index) => {
+        const item = document.createElement('div');
+        item.className = 'content-item cursor-pointer hover:bg-gray-50 transition-colors rounded-lg p-2';
+        
+        // Tạo link clickable
+        const postLink = post.permalink_url || `https://facebook.com/${post.id}`;
+        
+        // Tạo icon cho từng loại post
+        const getPostIcon = (type) => {
+            switch(type) {
+                case 'photo': return '📷';
+                case 'video': return '🎥';
+                case 'link': return '🔗';
+                case 'status': return '💬';
+                default: return '📄';
+            }
+        };
+        
+        // Tạo thumbnail từ hình ảnh thật hoặc icon
+        const thumbnailHtml = post.thumbnail_url ? 
+            `<img src="${post.thumbnail_url}" alt="Post thumbnail" class="w-8 h-8 rounded-full object-cover">` :
+            `<div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <span class="text-blue-600 text-xs">${getPostIcon(post.type)}</span>
+            </div>`;
+
+        item.innerHTML = `
+            <div class="content-rank">${index + 1}</div>
+            <div class="content-thumbnail">
+                ${thumbnailHtml}
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-gray-900 truncate">${post.type || 'Unknown'}</div>
+                <div class="text-xs text-gray-600 line-clamp-2">${post.message || 'No message'}</div>
+                <div class="text-xs text-gray-500 mt-1 flex gap-2 flex-wrap">
+                    <span class="inline-block bg-gray-100 px-2 py-1 rounded-full">
+                        ${formatNumber(post.impressions || 0)} impressions
+                    </span>
+                    <span class="inline-block bg-blue-100 px-2 py-1 rounded-full text-blue-700">
+                        ${formatDate(post.created_time)}
+                    </span>
+                    ${post.likes_count ? `<span class="inline-block bg-red-100 px-2 py-1 rounded-full text-red-700">❤️ ${post.likes_count}</span>` : ''}
+                    ${post.comments_count ? `<span class="inline-block bg-green-100 px-2 py-1 rounded-full text-green-700">💬 ${post.comments_count}</span>` : ''}
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-sm font-semibold text-blue-600">${formatNumber(post[metric] || 0)}</div>
+                <div class="text-xs text-gray-500">${metric}</div>
+            </div>
+        `;
+        
+        // Thêm event listener để mở link
+        item.addEventListener('click', function() {
+            window.open(postLink, '_blank');
+        });
+        
+        // Thêm title để hiển thị full message khi hover
+        item.title = `${post.message || 'No message'} - Click to view on Facebook`;
+        
+        container.appendChild(item);
+    });
+    
+    // Add total
+    const total = top5.reduce((sum, post) => sum + (post[metric] || 0), 0);
+    const totalDiv = document.createElement('div');
+    totalDiv.className = 'bg-gray-50 p-2 rounded text-sm font-semibold';
+    totalDiv.textContent = `Total: ${formatNumber(total)}`;
+    container.appendChild(totalDiv);
+}
+
+// Update date range display
+function updateDateRangeDisplay(dateRange) {
+    const display = document.getElementById('date-range-display');
+    if (display && dateRange) {
+        const since = new Date(dateRange.since);
+        const until = new Date(dateRange.until);
+        
+        const formatDate = (date) => {
+            return `${date.getDate()} thg ${date.getMonth() + 1}, ${date.getFullYear()}`;
+        };
+        
+        display.textContent = `${formatDate(since)} - ${formatDate(until)}`;
+    }
+}
+
+// Helper functions
+function updateElement(id, value) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.textContent = value;
+    }
+}
+
+function formatNumber(num) {
+    if (num >= 1000000) {
+        return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+}
+
+// Format date for display
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) {
+            return 'Hôm nay';
+        } else if (diffDays === 1) {
+            return 'Hôm qua';
+        } else if (diffDays < 7) {
+            return `${diffDays} ngày trước`;
+        } else {
+            return date.toLocaleDateString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        }
+    } catch (error) {
+        return 'N/A';
+    }
+}
+
+// Show data source notice
+function showDataSourceNotice(isDemo) {
+    // Remove existing notice
+    const existingNotice = document.getElementById('data-source-notice');
+    if (existingNotice) {
+        existingNotice.remove();
+    }
+    
+    if (isDemo) {
+        const notice = document.createElement('div');
+        notice.id = 'data-source-notice';
+        notice.className = 'fixed top-4 right-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-2 rounded shadow-lg z-50';
+        notice.innerHTML = `
+            <div class="flex items-center gap-2">
+                <span>⚠️</span>
+                <span class="text-sm font-medium">Demo Data Mode</span>
+                <button onclick="this.parentElement.parentElement.remove()" class="text-yellow-600 hover:text-yellow-800">×</button>
+            </div>
+        `;
+        document.body.appendChild(notice);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notice.parentElement) {
+                notice.remove();
+            }
+        }, 5000);
+    }
 }
 
 // Global filter integration
