@@ -1,6 +1,58 @@
 {% extends "base.html" %}
 
 {% block content %}
+    <!-- Modern Minimalist Navigation Menu -->
+    <div id="fab-nav" style="position: fixed; top: 30px; left: 30px; z-index: 9999;">
+        <button id="fab-toggle" style="background: #247ba0; color: white; border-radius: 12px; width: 70px; height: 70px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; font-size: 18px; border: none; cursor: pointer; transition: all 0.2s ease;">
+            <span id="fab-icon" style="transition: transform 0.2s ease;">☰</span>
+        </button>
+    </div>
+
+    <!-- Sticky Navigation Menu -->
+    <div id="sticky-nav" style="position: fixed; top: 50px; left: 50px; z-index: 9998; background: #ffffff; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 20px; min-width: 240px; display: none; border: 1px solid #e5e7eb;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+            <div style="font-size: 13px; font-weight: 600; color: #247ba0; text-transform: uppercase; letter-spacing: 0.05em;">Navigation</div>
+            <button id="nav-toggle" style="background: #6b7280; color: white; border-radius: 6px; padding: 6px 10px; font-size: 12px; border: none; cursor: pointer; transition: all 0.2s ease;">
+                ✕
+            </button>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+      
+            
+            <a href="#metric-cards" class="nav-link" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 14px; color: #247ba0; text-decoration: none; border-radius: 8px; transition: all 0.2s ease; background: transparent;">
+                <span style="width: 6px; height: 6px; background: #9ca3af; border-radius: 50%;"></span>
+                <span style="font-weight: 400;">Số liệu tổng quan</span>
+            </a>
+            
+            
+            <a href="#campaigns-table" class="nav-link" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 14px; color: #247ba0; text-decoration: none; border-radius: 8px; transition: all 0.2s ease; background: transparent;">
+                <span style="width: 6px; height: 6px; background: #9ca3af; border-radius: 50%;"></span>
+                <span style="font-weight: 400;">Danh sách Chiến dịch</span>
+            </a>
+            
+            <a href="#daily-tracking" class="nav-link" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 14px; color: #247ba0; text-decoration: none; border-radius: 8px; transition: all 0.2s ease; background: transparent;">
+                <span style="width: 6px; height: 6px; background: #9ca3af; border-radius: 50%;"></span>
+                <span style="font-weight: 400;">TRACKING ADS CHI TIẾT</span>
+            </a>
+            
+            <a href="#pivot-advanced" class="nav-link" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 14px; color: #247ba0; text-decoration: none; border-radius: 8px; transition: all 0.2s ease; background: transparent;">
+                <span style="width: 6px; height: 6px; background: #9ca3af; border-radius: 50%;"></span>
+                <span style="font-weight: 400;">REPORT TEAM SOCIAL MEDIA</span>
+            </a>
+            
+            <a href="#meta-report-insights" class="nav-link" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 14px; color: #247ba0; text-decoration: none; border-radius: 8px; transition: all 0.2s ease; background: transparent;">
+                <span style="width: 6px; height: 6px; background: #9ca3af; border-radius: 50%;"></span>
+                <span style="font-weight: 400;">SOCIAL MEDIA REPORT</span>
+            </a>
+            
+            <a href="#agency-report-section" class="nav-link" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; font-size: 14px; color: #247ba0; text-decoration: none; border-radius: 8px; transition: all 0.2s ease; background: transparent;">
+                <span style="width: 6px; height: 6px; background: #9ca3af; border-radius: 50%;"></span>
+                <span style="font-weight: 400;">REPORT ĐẠI LÝ</span>
+            </a>
+        </div>
+    </div>
+
     {% include 'components/global-filters.html' %}
     {% include 'components/metric-cards.html' %}
     {% include 'components/charts-section.html' %}
@@ -12,6 +64,131 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script>
+// Simple Navigation Menu JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Navigation script starting...');
+    
+    const fabNav = document.getElementById('fab-nav');
+    const stickyNav = document.getElementById('sticky-nav');
+    const fabToggle = document.getElementById('fab-toggle');
+    const navToggle = document.getElementById('nav-toggle');
+    const navLinks = document.querySelectorAll('.nav-link');
+    
+    console.log('Elements found:', {
+        fabNav: !!fabNav,
+        stickyNav: !!stickyNav,
+        fabToggle: !!fabToggle,
+        navToggle: !!navToggle,
+        navLinks: navLinks.length
+    });
+    
+    let isMenuOpen = false;
+    
+    // Toggle menu function
+    function toggleMenu() {
+        console.log('Toggle menu clicked, current state:', isMenuOpen);
+        isMenuOpen = !isMenuOpen;
+        
+        if (isMenuOpen) {
+            stickyNav.style.display = 'block';
+            fabNav.style.display = 'none';
+            navToggle.innerHTML = '✕';
+            console.log('Menu opened');
+        } else {
+            stickyNav.style.display = 'none';
+            fabNav.style.display = 'block';
+            navToggle.innerHTML = '☰';
+            console.log('Menu closed');
+        }
+    }
+    
+    // Smooth scroll function
+    function smoothScrollTo(targetId) {
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+            const offsetTop = targetElement.offsetTop - 100;
+            window.scrollTo({
+                top: offsetTop,
+                behavior: 'smooth'
+            });
+            
+            // Close menu after clicking
+            if (isMenuOpen) {
+                toggleMenu();
+            }
+        }
+    }
+    
+    // Add event listeners
+    if (fabToggle) {
+        fabToggle.addEventListener('click', toggleMenu);
+        console.log('FAB listener added');
+    }
+    
+    if (navToggle) {
+        navToggle.addEventListener('click', toggleMenu);
+        console.log('Nav toggle listener added');
+    }
+    
+    // Handle nav link clicks
+    navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href').substring(1);
+            console.log('Navigating to:', targetId);
+            smoothScrollTo(targetId);
+        });
+    });
+    
+    // Clean hover effects for nav links
+    navLinks.forEach(link => {
+        link.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f0f7ff';
+            this.style.color = '#247ba0';
+            this.style.fontWeight = '500';
+            
+            // Animate dot
+            const dot = this.querySelector('span:first-child');
+            if (dot) {
+                dot.style.backgroundColor = '#247ba0';
+                dot.style.transform = 'scale(1.2)';
+            }
+        });
+        
+        link.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = 'transparent';
+            this.style.color = '#247ba0';
+            this.style.fontWeight = '400';
+            
+            // Reset dot
+            const dot = this.querySelector('span:first-child');
+            if (dot) {
+                dot.style.backgroundColor = '#9ca3af';
+                dot.style.transform = 'scale(1)';
+            }
+        });
+    });
+    
+    // FAB hover effects
+    if (fabToggle) {
+        fabToggle.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#1a5f7a';
+            this.style.transform = 'scale(1.05)';
+            this.style.boxShadow = '0 6px 16px rgba(36, 123, 160, 0.3)';
+        });
+        
+        fabToggle.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '#247ba0';
+            this.style.transform = 'scale(1)';
+            this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        });
+    }
+    
+    console.log('Navigation setup complete');
+});
+
+</script>
 <script>
     // Wire buttons and event listeners
     document.addEventListener('DOMContentLoaded',()=>{

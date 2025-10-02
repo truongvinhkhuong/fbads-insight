@@ -295,6 +295,51 @@
     overflow-y: auto;
 }
 
+/* Navigation Menu Styles */
+#sticky-nav {
+    transition: all 0.3s ease;
+    min-width: 200px;
+}
+
+#sticky-nav.hidden {
+    transform: translateX(100%);
+    opacity: 0;
+}
+
+#fab-nav {
+    transition: all 0.3s ease;
+}
+
+#fab-nav.hidden {
+    opacity: 0;
+    transform: scale(0.8);
+}
+
+.nav-link {
+    transition: all 0.2s ease;
+    border-radius: 6px;
+}
+
+.nav-link:hover {
+    transform: translateX(2px);
+}
+
+.nav-link span:first-child {
+    transition: all 0.2s ease;
+}
+
+/* Smooth scroll behavior */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Active section highlighting */
+.section-highlight {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-left: 4px solid #3b82f6;
+    transition: all 0.3s ease;
+}
+
 .table-sticky {
     position: sticky;
     left: 0;

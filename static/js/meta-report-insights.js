@@ -381,7 +381,7 @@ function updatePageInsightsUI(data) {
     
     // Sử dụng dữ liệu thực tế từ posts
     updateElement('post-clicks', formatNumber(summaryMetrics.total_post_clicks || 0));
-    updateElement('post-comment', formatNumber((summaryMetrics.total_post_reactions || 0) * 0.3)); // Estimate comments
+    updateElement('post-comment', formatNumber(Math.round(summaryMetrics.comments || 0))); // Sử dụng dữ liệu comment thực tế
     updateElement('post-like-total', formatNumber(summaryMetrics.total_post_reactions || 0));
 }
 
