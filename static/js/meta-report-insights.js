@@ -822,7 +822,7 @@ async function loadAgencyReport() {
         const selectedMonth = document.getElementById('agency-month-select')?.value || '2025-09';
         
         // Build API URL with month filter
-        let apiUrl = 'http://localhost:5002/api/agency-report?';
+        let apiUrl = '/api/agency-report?';
         const params = new URLSearchParams();
         params.append('month', selectedMonth);
         
