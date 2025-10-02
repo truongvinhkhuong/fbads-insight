@@ -332,6 +332,13 @@ function showLoadingState() {
     loadingElements.forEach(el => {
         if (el) el.textContent = '...';
     });
+    
+    // Update fanpage name display to loading state
+    const nameDisplay = document.getElementById('fanpage-name-display');
+    if (nameDisplay) {
+        nameDisplay.textContent = 'Đang tải tên fanpage...';
+        nameDisplay.className = 'px-2 py-1 bg-blue-50 border border-blue-200 rounded text-sm w-full text-blue-600';
+    }
 }
 
 // Show error state
@@ -351,6 +358,13 @@ function showErrorState(message) {
         if (el) el.textContent = 'Error';
     });
     
+    // Update fanpage name display to error state
+    const nameDisplay = document.getElementById('fanpage-name-display');
+    if (nameDisplay) {
+        nameDisplay.textContent = 'Lỗi tải dữ liệu';
+        nameDisplay.className = 'px-2 py-1 bg-red-50 border border-red-200 rounded text-sm w-full text-red-600';
+    }
+    
     console.error('Error state:', message);
 }
 
@@ -359,10 +373,16 @@ function updatePageInsightsUI(data) {
     const pageInfo = data.page_info || {};
     const summaryMetrics = data.summary_metrics || {};
     
-    // Update fanpage name input
-    const nameInput = document.querySelector('input[placeholder="Nhập tên fanpage"]');
-    if (nameInput && pageInfo.name) {
-        nameInput.value = pageInfo.name;
+    // Update fanpage name display
+    const nameDisplay = document.getElementById('fanpage-name-display');
+    if (nameDisplay) {
+        if (pageInfo.name) {
+            nameDisplay.textContent = pageInfo.name;
+            nameDisplay.className = 'px-2 py-1 bg-green-50 border border-green-200 rounded text-sm w-full text-green-900 font-medium';
+        } else {
+            nameDisplay.textContent = 'Không có thông tin fanpage';
+            nameDisplay.className = 'px-2 py-1 bg-gray-50 border border-gray-200 rounded text-sm w-full text-gray-500';
+        }
     }
     
     // Update metric cards với dữ liệu thực tế

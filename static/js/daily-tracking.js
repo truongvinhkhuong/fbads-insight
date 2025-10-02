@@ -1,10 +1,16 @@
 // JavaScript for Daily Tracking functionality
 
 let dailyTrackingData = null;
+let isPasswordUnlocked = false;
 
 function initializeDailyTracking() {
-    // Load initial data
-    loadDailyTrackingData();
+    // Initialize password protection
+    initializePasswordProtection();
+    
+    // Load initial data only if password is unlocked
+    if (isPasswordUnlocked) {
+        loadDailyTrackingData();
+    }
     
     // Event listeners
     document.getElementById('btn-refresh-daily').addEventListener('click', loadDailyTrackingData);
@@ -46,6 +52,12 @@ async function refreshBudgetCache() {
 
 async function loadDailyTrackingData(customParams = null) {
     try {
+        // Check if password is unlocked
+        if (!isPasswordUnlocked) {
+            console.log('Password not unlocked, skipping daily tracking data load');
+            return;
+        }
+        
         let preset = 'last_7d';
         let url = '/api/daily-tracking';
         
@@ -322,4 +334,162 @@ function exportDailyData() {
     a.download = `daily-tracking-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+}
+
+// Initialize password protection
+function initializePasswordProtection() {
+    console.log('Initializing daily tracking password protection...');
+    
+    // Check if password is already stored in session
+    const storedPassword = sessionStorage.getItem('daily-tracking-unlocked');
+    if (storedPassword === 'true') {
+        isPasswordUnlocked = true;
+        hidePasswordOverlay();
+        return;
+    }
+    
+    // Set up password form event listener
+    const passwordForm = document.getElementById('password-form');
+    const passwordInput = document.getElementById('password-input');
+    const passwordError = document.getElementById('password-error');
+    
+    if (passwordForm && passwordInput) {
+        passwordForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            validatePassword();
+        });
+        
+        // Clear error message when user starts typing
+        passwordInput.addEventListener('input', function() {
+            if (!passwordError.classList.contains('hidden')) {
+                passwordError.classList.add('hidden');
+            }
+        });
+        
+        // Focus on password input when page loads
+        passwordInput.focus();
+    }
+    
+    // Set up lock/unlock button
+    const lockUnlockBtn = document.getElementById('lock-unlock-btn');
+    if (lockUnlockBtn) {
+        lockUnlockBtn.addEventListener('click', function() {
+            if (isPasswordUnlocked) {
+                lockReport();
+            } else {
+                showPasswordOverlay();
+            }
+        });
+        
+        // Update button icon based on state
+        updateLockButtonIcon();
+    }
+}
+
+// Validate password
+function validatePassword() {
+    const passwordInput = document.getElementById('password-input');
+    const passwordError = document.getElementById('password-error');
+    const correctPassword = 'bbi1212';
+    
+    if (!passwordInput) return;
+    
+    const enteredPassword = passwordInput.value.trim();
+    
+    if (enteredPassword === correctPassword) {
+        // Correct password
+        isPasswordUnlocked = true;
+        
+        // Store in session storage
+        sessionStorage.setItem('daily-tracking-unlocked', 'true');
+        
+        // Hide overlay
+        hidePasswordOverlay();
+        
+        // Load data now that password is validated
+        loadDailyTrackingData();
+        
+        console.log('Daily tracking password validated successfully');
+    } else {
+        // Incorrect password
+        passwordError.classList.remove('hidden');
+        passwordInput.value = '';
+        passwordInput.focus();
+        
+        // Shake animation for error feedback
+        passwordInput.classList.add('animate-pulse');
+        setTimeout(() => {
+            passwordInput.classList.remove('animate-pulse');
+        }, 500);
+    }
+}
+
+// Hide password overlay
+function hidePasswordOverlay() {
+    const overlay = document.getElementById('password-protection-overlay');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.transform = 'scale(0.95)';
+        
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 300);
+    }
+    
+    // Update lock button icon
+    updateLockButtonIcon();
+}
+
+// Show password overlay
+function showPasswordOverlay() {
+    const overlay = document.getElementById('password-protection-overlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.style.opacity = '1';
+        overlay.style.transform = 'scale(1)';
+        
+        // Clear password input and focus
+        const passwordInput = document.getElementById('password-input');
+        if (passwordInput) {
+            passwordInput.value = '';
+            passwordInput.focus();
+        }
+        
+        // Hide error message
+        const passwordError = document.getElementById('password-error');
+        if (passwordError) {
+            passwordError.classList.add('hidden');
+        }
+    }
+}
+
+// Lock the report
+function lockReport() {
+    isPasswordUnlocked = false;
+    sessionStorage.removeItem('daily-tracking-unlocked');
+    showPasswordOverlay();
+    console.log('Daily tracking report locked');
+}
+
+// Update lock button icon
+function updateLockButtonIcon() {
+    const lockUnlockBtn = document.getElementById('lock-unlock-btn');
+    if (!lockUnlockBtn) return;
+    
+    const icon = lockUnlockBtn.querySelector('svg path');
+    if (!icon) return;
+    
+    if (isPasswordUnlocked) {
+        // Show unlocked icon
+        icon.setAttribute('d', 'M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z');
+        lockUnlockBtn.title = 'Khóa báo cáo';
+        lockUnlockBtn.classList.remove('text-gray-500');
+        lockUnlockBtn.classList.add('text-green-600');
+    } else {
+        // Show locked icon
+        icon.setAttribute('d', 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z');
+        lockUnlockBtn.title = 'Mở khóa báo cáo';
+        lockUnlockBtn.classList.remove('text-green-600');
+        lockUnlockBtn.classList.add('text-gray-500');
+    }
 }
