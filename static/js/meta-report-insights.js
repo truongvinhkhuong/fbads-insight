@@ -27,10 +27,35 @@ function initializeMetaReportInsights() {
     if (aiBtn) loadMetaContentInsights();
 }
 
-async function loadMetaReportData() {
+// Global filter integration
+function updateMetaReportWithFilters(filterParams) {
+    console.log('Updating Meta Report with filters:', filterParams);
+    loadMetaReportData(filterParams);
+}
+
+async function loadMetaReportData(customParams = null) {
     try {
         console.log('Loading Meta Report data...');
-        const preset = document.getElementById('meta-report-date-preset').value;
+        let preset = 'last_30d';
+        let url = '/api/meta-report-insights';
+        
+        if (customParams) {
+            // Use global filter parameters
+            const params = new URLSearchParams();
+            if (customParams.date_preset) params.append('date_preset', customParams.date_preset);
+            if (customParams.since) params.append('since', customParams.since);
+            if (customParams.until) params.append('until', customParams.until);
+            if (customParams.campaign_id) params.append('campaign_id', customParams.campaign_id);
+            if (customParams.brand) params.append('brand', customParams.brand);
+            
+            url += '?' + params.toString();
+            preset = customParams.date_preset || 'last_30d';
+        } else {
+            // Use local filter
+            preset = document.getElementById('meta-report-date-preset').value;
+            url += `?date_preset=${encodeURIComponent(preset)}`;
+        }
+        
         const tbody = document.getElementById('meta-report-table');
         
         console.log('Preset:', preset, 'Table body found:', !!tbody);
@@ -39,7 +64,7 @@ async function loadMetaReportData() {
             tbody.innerHTML = '<tr><td colspan="14" class="px-6 py-4 text-center text-gray-500">Đang tải dữ liệu...</td></tr>';
         }
         
-        const response = await fetch(`/api/meta-report-insights?date_preset=${encodeURIComponent(preset)}`);
+        const response = await fetch(url);
         console.log('API response status:', response.status);
         
         const data = await response.json();

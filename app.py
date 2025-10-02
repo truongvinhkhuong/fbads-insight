@@ -1906,6 +1906,191 @@ def api_agency_report():
         # Do not hard fail; return an empty but valid payload for UI
         return jsonify({'error': str(e), 'months': {}, 'funnel': [], 'groups': {}}), 200
 
+@app.route('/api/filter-options')
+def api_filter_options():
+    """API to get filter options for global filters"""
+    try:
+        ads_data = load_ads_data()
+        if ads_data.get('error'):
+            return jsonify({'error': ads_data['error']}), 500
+        
+        campaigns = ads_data.get('campaigns', [])
+        if not campaigns:
+            return jsonify({'brands': [], 'campaigns': [], 'adsets': [], 'ads': []})
+        
+        # Extract brands from campaign names
+        brand_set = set()
+        campaign_list = []
+        adset_list = []
+        ad_list = []
+        
+        for campaign in campaigns:
+            # Extract brand
+            brand = extract_brand_from_campaign_name(campaign.get('campaign_name', ''))
+            if brand and brand != 'Unknown':
+                brand_set.add(brand)
+            
+            # Add campaign
+            campaign_list.append({
+                'id': campaign.get('campaign_id'),
+                'name': campaign.get('campaign_name', ''),
+                'brand': brand,
+                'status': campaign.get('status', ''),
+                'objective': campaign.get('objective', '')
+            })
+            
+            # For now, use campaigns as adsets and ads (in real implementation, fetch actual ad sets and ads)
+            adset_list.append({
+                'id': f"adset_{campaign.get('campaign_id')}",
+                'name': f"Ad Set: {campaign.get('campaign_name', '')}",
+                'campaign_id': campaign.get('campaign_id')
+            })
+            
+            ad_list.append({
+                'id': f"ad_{campaign.get('campaign_id')}",
+                'name': f"Ad: {campaign.get('campaign_name', '')}",
+                'campaign_id': campaign.get('campaign_id'),
+                'adset_id': f"adset_{campaign.get('campaign_id')}"
+            })
+        
+        return jsonify({
+            'brands': sorted(list(brand_set)),
+            'campaigns': campaign_list,
+            'adsets': adset_list,
+            'ads': ad_list,
+            'total_campaigns': len(campaigns)
+        })
+        
+    except Exception as e:
+        logger.error(f"Lỗi /api/filter-options: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/filtered-data')
+def api_filtered_data():
+    """API to get filtered data based on global filter parameters"""
+    try:
+        # Get filter parameters
+        date_preset = request.args.get('date_preset', 'last_30d')
+        since = request.args.get('since')
+        until = request.args.get('until')
+        campaign_id = request.args.get('campaign_id')
+        adset_id = request.args.get('adset_id')
+        ad_id = request.args.get('ad_id')
+        brand = request.args.get('brand')
+        
+        # Load base data
+        ads_data = load_ads_data()
+        if ads_data.get('error'):
+            return jsonify({'error': ads_data['error']}), 500
+        
+        campaigns = ads_data.get('campaigns', [])
+        
+        # Apply filters
+        filtered_campaigns = campaigns.copy()
+        
+        # Filter by brand
+        if brand and brand != 'all':
+            filtered_campaigns = [
+                c for c in filtered_campaigns 
+                if extract_brand_from_campaign_name(c.get('campaign_name', '')) == brand
+            ]
+        
+        # Filter by specific campaign
+        if campaign_id and campaign_id != 'all':
+            filtered_campaigns = [
+                c for c in filtered_campaigns 
+                if c.get('campaign_id') == campaign_id
+            ]
+        
+        # Prepare date parameters for API calls
+        date_params = {'date_preset': date_preset}
+        if since and until:
+            date_params.update({
+                'date_preset': 'custom',
+                'since': since,
+                'until': until
+            })
+        
+        # Get insights for filtered campaigns
+        token = get_access_token()
+        if not token:
+            return jsonify({'error': 'Missing access token'}), 500
+        
+        base_url = 'https://graph.facebook.com/v23.0'
+        insights_data = []
+        
+        # Limit to avoid timeout
+        max_campaigns = min(len(filtered_campaigns), 10)
+        
+        for campaign in filtered_campaigns[:max_campaigns]:
+            campaign_id = campaign.get('campaign_id')
+            if not campaign_id:
+                continue
+                
+            try:
+                url = f"{base_url}/{campaign_id}/insights"
+                params = {
+                    'access_token': token,
+                    'fields': 'campaign_name,impressions,clicks,spend,ctr,cpc,cpm,reach,frequency,actions,conversion_values,inline_link_clicks',
+                    'time_increment': 1,
+                    **date_params
+                }
+                
+                response = requests.get(url, params=params, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    daily_rows = data.get('data', [])
+                    
+                    for row in daily_rows:
+                        row['campaign_id'] = campaign_id
+                        row['campaign_name'] = campaign.get('campaign_name', '')
+                        row['brand'] = extract_brand_from_campaign_name(campaign.get('campaign_name', ''))
+                        insights_data.append(row)
+                        
+            except Exception as e:
+                logger.warning(f"Error fetching insights for campaign {campaign_id}: {e}")
+                continue
+        
+        # Aggregate data
+        totals = {
+            'impressions': sum(int(float(row.get('impressions', 0) or 0)) for row in insights_data),
+            'clicks': sum(int(float(row.get('clicks', 0) or 0)) for row in insights_data),
+            'spend': sum(float(row.get('spend', 0) or 0) for row in insights_data),
+            'reach': sum(int(float(row.get('reach', 0) or 0)) for row in insights_data),
+            'inline_link_clicks': sum(int(float(row.get('inline_link_clicks', 0) or 0)) for row in insights_data)
+        }
+        
+        # Calculate derived metrics
+        if totals['impressions'] > 0:
+            totals['ctr'] = (totals['clicks'] / totals['impressions']) * 100
+            totals['cpm'] = (totals['spend'] / totals['impressions']) * 1000
+        else:
+            totals['ctr'] = 0
+            totals['cpm'] = 0
+            
+        if totals['clicks'] > 0:
+            totals['cpc'] = totals['spend'] / totals['clicks']
+        else:
+            totals['cpc'] = 0
+        
+        if totals['reach'] > 0:
+            totals['frequency'] = totals['impressions'] / totals['reach']
+        else:
+            totals['frequency'] = 0
+        
+        return jsonify({
+            'totals': totals,
+            'daily_data': insights_data,
+            'filtered_campaigns': len(filtered_campaigns),
+            'total_campaigns': len(campaigns),
+            'date_params': date_params,
+            'extraction_date': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Lỗi /api/filtered-data: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5002))
     debug = os.environ.get('FLASK_ENV') == 'development'

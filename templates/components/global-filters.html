@@ -1,0 +1,130 @@
+<!-- Global Filters Component -->
+<div class="bg-white rounded-lg shadow mb-6 border border-gray-200 sticky top-0 z-40">
+    <div class="px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-800">Bộ lọc dữ liệu</h3>
+            <div class="flex items-center gap-2">
+                <button id="btn-reset-filters" class="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded hover:bg-gray-50 transition">
+                    Đặt lại
+                </button>
+                <button id="btn-apply-filters" class="px-4 py-1 text-sm text-white bg-blue-600 hover:bg-blue-700 rounded transition">
+                    Áp dụng
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="px-6 py-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <!-- Thời gian -->
+            <div class="filter-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Thời gian</label>
+                <div class="space-y-2">
+                    <select id="filter-date-preset" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="last_7d">7 ngày qua</option>
+                        <option value="last_30d" selected>30 ngày qua</option>
+                        <option value="last_90d">90 ngày qua</option>
+                        <option value="last_180d">180 ngày qua</option>
+                        <option value="lifetime">Toàn thời gian</option>
+                        <option value="custom">Tùy chỉnh</option>
+                    </select>
+                    <div id="custom-date-range" class="hidden space-y-2">
+                        <input type="date" id="filter-date-from" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <input type="date" id="filter-date-to" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Brand -->
+            <div class="filter-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Brand</label>
+                <select id="filter-brand" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="all" selected>Tất cả Brand</option>
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+            
+            <!-- Chiến dịch -->
+            <div class="filter-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Chiến dịch</label>
+                <select id="filter-campaign" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="all" selected>Tất cả Chiến dịch</option>
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+            
+            <!-- Nhóm Quảng Cáo -->
+            <div class="filter-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Nhóm Quảng Cáo</label>
+                <select id="filter-adset" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="all" selected>Tất cả Nhóm QC</option>
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+            
+            <!-- Quảng Cáo -->
+            <div class="filter-group">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Quảng Cáo</label>
+                <select id="filter-ad" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="all" selected>Tất cả Quảng Cáo</option>
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+        </div>
+        
+        <!-- Filter Status -->
+        <div class="mt-4 flex items-center justify-between">
+            <div class="text-sm text-gray-600">
+                <span id="filter-status-text">Chưa áp dụng bộ lọc</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+                <span>Hiển thị:</span>
+                <span id="filter-results-count">0</span>
+                <span>kết quả</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.filter-group {
+    min-width: 0; /* Prevent flex items from overflowing */
+}
+
+#custom-date-range {
+    transition: all 0.3s ease;
+}
+
+/* Sticky positioning for mobile */
+@media (max-width: 768px) {
+    .sticky {
+        position: relative;
+    }
+}
+
+/* Loading state for filter options */
+.filter-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.filter-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    border: 2px solid #e5e7eb;
+    border-top: 2px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
+</style>
+

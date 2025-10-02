@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAdsData();
     initializeChatbot();
     initializeDailyTracking();
+    
+    // Initialize global filters integration
+    if (window.globalFilters) {
+        window.globalFilters.onFilterChange(handleGlobalFilterChange);
+    }
 });
 
 async function loadAdsData() {
@@ -34,6 +39,79 @@ function updateDashboard(data) {
     document.getElementById('paused-campaigns').textContent = paused.toLocaleString();
     updateCampaignsTable(data.campaigns);
     createCharts(data.campaigns);
+}
+
+// Global filter change handler
+function handleGlobalFilterChange(filterParams, filters) {
+    console.log('Global filter changed:', filterParams, filters);
+    
+    // Apply filters to campaigns table
+    if (adsData && adsData.campaigns) {
+        let filteredCampaigns = adsData.campaigns;
+        
+        // Apply brand filter
+        if (filters.brand !== 'all') {
+            filteredCampaigns = filteredCampaigns.filter(campaign => {
+                const campaignName = campaign.campaign_name || '';
+                return extractBrandFromCampaignName(campaignName) === filters.brand;
+            });
+        }
+        
+        // Apply campaign filter
+        if (filters.campaign !== 'all') {
+            filteredCampaigns = filteredCampaigns.filter(campaign => 
+                campaign.campaign_id === filters.campaign
+            );
+        }
+        
+        // Update dashboard with filtered data
+        updateCampaignsTable(filteredCampaigns);
+        createCharts(filteredCampaigns);
+        
+        // Update metric cards
+        const total = filteredCampaigns.length;
+        const active = filteredCampaigns.filter(c => c.status === 'ACTIVE').length;
+        const paused = total - active;
+        document.getElementById('total-campaigns').textContent = total.toLocaleString();
+        document.getElementById('active-campaigns').textContent = active.toLocaleString();
+        document.getElementById('paused-campaigns').textContent = paused.toLocaleString();
+    }
+    
+    // Trigger other sections to update with new filters
+    if (typeof updateDailyTrackingWithFilters === 'function') {
+        updateDailyTrackingWithFilters(filterParams);
+    }
+    
+    if (typeof updateMetaReportWithFilters === 'function') {
+        updateMetaReportWithFilters(filterParams);
+    }
+    
+    if (typeof updatePivotAdvancedWithFilters === 'function') {
+        updatePivotAdvancedWithFilters(filterParams);
+    }
+}
+
+// Helper function to extract brand from campaign name (same as backend)
+function extractBrandFromCampaignName(campaignName) {
+    if (!campaignName) return 'Unknown';
+    
+    const nameLower = campaignName.toLowerCase();
+    
+    if (nameLower.includes('bbi') || nameLower.includes('biz')) {
+        return 'BBI';
+    } else if (nameLower.includes('meta') || nameLower.includes('facebook')) {
+        return 'Meta';
+    } else if (nameLower.includes('google')) {
+        return 'Google';
+    } else if (nameLower.includes('tiktok')) {
+        return 'TikTok';
+    } else {
+        const words = campaignName.split();
+        if (words.length > 0) {
+            return words[0].substring(0, 20);
+        }
+        return 'Unknown';
+    }
 }
 
 // Manual refresh

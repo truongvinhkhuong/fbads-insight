@@ -10,6 +10,16 @@ function updatePivotAdvanced(data){
     fetchPivotAdvancedBreakdowns();
 }
 
+// Global filter integration
+function updatePivotAdvancedWithFilters(filterParams) {
+    console.log('Updating Pivot Advanced with filters:', filterParams);
+    // This will be triggered by the global filter change
+    // The data will be updated through the daily tracking section
+    if (typeof loadDailyTrackingData === 'function') {
+        loadDailyTrackingData(filterParams);
+    }
+}
+
 function renderPivotAdvancedTable(rows){
     const tbody=document.getElementById('pivot-adv-table');
     if(!tbody) return;

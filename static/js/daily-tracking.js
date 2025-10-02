@@ -12,6 +12,12 @@ function initializeDailyTracking() {
     document.getElementById('daily-date-preset').addEventListener('change', loadDailyTrackingData);
 }
 
+// Global filter integration
+function updateDailyTrackingWithFilters(filterParams) {
+    console.log('Updating daily tracking with filters:', filterParams);
+    loadDailyTrackingData(filterParams);
+}
+
 async function refreshBudgetCache() {
     try {
         const button = event.target;
@@ -38,13 +44,32 @@ async function refreshBudgetCache() {
     }
 }
 
-async function loadDailyTrackingData() {
+async function loadDailyTrackingData(customParams = null) {
     try {
-        const preset = document.getElementById('daily-date-preset').value || 'last_7d';
+        let preset = 'last_7d';
+        let url = '/api/daily-tracking';
+        
+        if (customParams) {
+            // Use global filter parameters
+            const params = new URLSearchParams();
+            if (customParams.date_preset) params.append('date_preset', customParams.date_preset);
+            if (customParams.since) params.append('since', customParams.since);
+            if (customParams.until) params.append('until', customParams.until);
+            if (customParams.campaign_id) params.append('campaign_id', customParams.campaign_id);
+            if (customParams.brand) params.append('brand', customParams.brand);
+            
+            url += '?' + params.toString();
+            preset = customParams.date_preset || 'last_7d';
+        } else {
+            // Use local filter
+            preset = document.getElementById('daily-date-preset').value || 'last_7d';
+            url += `?date_preset=${encodeURIComponent(preset)}`;
+        }
+        
         const tbody = document.getElementById('daily-tracking-table');
         tbody.innerHTML = '<tr><td colspan="24" class="px-6 py-4 text-center text-gray-500">Đang tải dữ liệu...</td></tr>';
         
-        const response = await fetch(`/api/daily-tracking?date_preset=${encodeURIComponent(preset)}`);
+        const response = await fetch(url);
         const data = await response.json();
         
         if (data.error) {
