@@ -291,7 +291,7 @@
 
 /* Fixed-height vertical scroll for tall tables */
 .table-vertical-scroll {
-    max-height: 300px;
+    max-height: 200px;
     overflow-y: auto;
     border: 1px solid #e5e7eb;
     border-radius: 0.375rem;
@@ -353,6 +353,48 @@
     background-color: #f9fafb;
     z-index: 10;
     border-bottom: 2px solid #e5e7eb;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Specific styling for campaigns table */
+#campaigns-table .table-vertical-scroll {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+}
+
+#campaigns-table .table-vertical-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+
+#campaigns-table .table-vertical-scroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+#campaigns-table .table-vertical-scroll::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
+    border: 1px solid #f1f5f9;
+}
+
+#campaigns-table .table-vertical-scroll::-webkit-scrollbar-thumb:hover {
+    background: #1e6b8a;
+}
+
+#campaigns-table .table-vertical-scroll thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f9fafb;
+    z-index: 10;
+    border-bottom: 2px solid #e5e7eb;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Specific styling for Daily Tracking (REPORT SOCIAL MEDIA - DETAIL) table */
+#daily-tracking .table-vertical-scroll {
+    max-height: 400px;
 }
 
 /* Navigation Menu Styles */
@@ -439,6 +481,28 @@ html {
     .chatbot-container {
         width: 90vw;
         right: 5vw;
+    }
+    
+    /* Adjust table height on mobile for better UX */
+    .table-vertical-scroll {
+        max-height: 150px;
+    }
+    
+    .table-vertical-scroll th,
+    .table-vertical-scroll td {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    /* Specific mobile adjustments for campaigns table */
+    #campaigns-table .table-vertical-scroll {
+        max-height: 150px;
+    }
+    
+    #campaigns-table .table-vertical-scroll th,
+    #campaigns-table .table-vertical-scroll td {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.75rem;
     }
 }
 
