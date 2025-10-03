@@ -2,40 +2,29 @@
 <div id="meta-report-insights" class="bg-white rounded-lg shadow mt-8 border border-gray-100">
     <!-- Header Section -->
     <div class="px-6 py-4 social-media-header border-b border-gray-200">
-        <div class="flex items-center justify-between">
-        <div>
-                <h1 class="text-2xl font-bold text-black">TRACKING META REPORT INSIGHT</h1>
+        <div class="flex items-start md:items-center justify-between gap-4 flex-wrap">
+            <div class="min-w-[230px]">
+                <h1 class="text-xl md:text-2xl font-bold text-black leading-tight">TRACKING META REPORT INSIGHT</h1>
+                <p class="text-xs text-gray-500 mt-1 hidden md:block">Theo dõi hiệu suất theo một bộ lọc duy nhất</p>
             </div>
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2">
-                    <label class="text-sm text-gray-600">Post type:</label>
-                    <select id="post-type-filter" class="border px-2 py-1 rounded text-sm">
-                        <option value="all">Tất cả</option>
-                        <option value="photo">Hình ảnh</option>
-                        <option value="video">Video</option>
-                        <option value="link">Link</option>
-                        <option value="status">Status</option>
-                        <option value="album">Album</option>
-                    </select>
-        </div>
-                <div class="flex items-center gap-2">
-                    <label class="text-sm text-gray-600">Date (Tháng):</label>
-                    <select id="date-preset-filter" class="border px-2 py-1 rounded text-sm">
-                        <option value="last_30d">30 ngày gần nhất</option>
-                        <option value="last_90d">90 ngày gần nhất</option>
-                        <option value="last_180d">180 ngày gần nhất</option>
+            <!-- Single unified filter group -->
+            <div class="flex-1 flex flex-wrap items-center gap-3 md:gap-4">
+                <div class="flex items-center gap-2 bg-white/70 border border-gray-200 rounded-md px-3 py-2">
+                    <label class="text-sm text-gray-600 whitespace-nowrap">Khoảng thời gian</label>
+                    <select id="meta-report-date-preset" class="border px-2 py-1 rounded text-sm">
+                        <option value="last_30d" selected>30 ngày</option>
+                        <option value="last_90d">90 ngày</option>
+                        <option value="last_180d">180 ngày</option>
                         <option value="custom">Tùy chỉnh</option>
-                </select>
-            </div>
-                <div id="custom-date-inputs" class="flex items-center gap-2 hidden">
-                    <input type="date" id="since-date" class="border px-2 py-1 rounded text-sm">
-                    <span class="text-sm text-gray-600">đến</span>
-                    <input type="date" id="until-date" class="border px-2 py-1 rounded text-sm">
+                    </select>
+                    <div id="meta-report-custom-dates" class="items-center gap-2 hidden">
+                        <input type="date" id="meta-report-since" class="border px-2 py-1 rounded text-sm">
+                        <span class="text-sm text-gray-600">đến</span>
+                        <input type="date" id="meta-report-until" class="border px-2 py-1 rounded text-sm">
+                    </div>
+                    <button id="meta-report-apply" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700 whitespace-nowrap">Áp dụng</button>
                 </div>
-                <button id="apply-filters-btn" class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
-                    Áp dụng
-                </button>
-                <div class="text-sm text-gray-600">
+                <div class="hidden md:block text-sm text-gray-600 px-1">
                     <span id="date-range-display">30 ngày gần nhất</span>
                 </div>
             </div>

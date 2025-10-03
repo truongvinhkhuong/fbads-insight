@@ -12,8 +12,44 @@ if (typeof NUM_FMT === 'undefined') {
 function initializeMetaReportInsights() {
     console.log('Initializing Meta Report Insights...');
     
-    // Initialize event listeners for filters
-    initializeFilters();
+    // Remove old local filters (we now use a single unified filter)
+    try {
+        const oldApply = document.getElementById('apply-filters-btn');
+        if (oldApply) {
+            oldApply.onclick = null;
+        }
+    } catch(_){}
+    // Initialize Meta Report date controls (since/until)
+    try {
+        const mrPreset = document.getElementById('meta-report-date-preset');
+        const mrCustom = document.getElementById('meta-report-custom-dates');
+        const mrSince = document.getElementById('meta-report-since');
+        const mrUntil = document.getElementById('meta-report-until');
+        const mrApply = document.getElementById('meta-report-apply');
+        if (mrPreset) {
+            mrPreset.addEventListener('change', () => {
+                if (mrPreset.value === 'custom') {
+                    mrCustom && mrCustom.classList.remove('hidden');
+                } else {
+                    mrCustom && mrCustom.classList.add('hidden');
+                }
+            });
+        }
+        if (mrApply) {
+            mrApply.addEventListener('click', () => {
+                const params = {};
+                const preset = mrPreset?.value || 'last_30d';
+                if (preset === 'custom' && mrSince?.value && mrUntil?.value) {
+                    params.date_preset = 'custom';
+                    params.since = mrSince.value;
+                    params.until = mrUntil.value;
+                } else {
+                    params.date_preset = preset;
+                }
+                loadMetaReportData(params);
+            });
+        }
+    } catch (e) { console.warn('Meta Report date controls init error', e); }
     
     // Initialize the daily interaction chart
     initializeDailyInteractionChart();
@@ -742,9 +778,20 @@ async function loadMetaReportData(customParams = null) {
             url += '?' + params.toString();
             preset = customParams.date_preset || 'last_30d';
         } else {
-            // Use local filter
-            preset = document.getElementById('meta-report-date-preset').value;
-            url += `?date_preset=${encodeURIComponent(preset)}`;
+            // Use local Meta Report date filter
+            const localPreset = document.getElementById('meta-report-date-preset')?.value || 'last_30d';
+            const since = document.getElementById('meta-report-since')?.value;
+            const until = document.getElementById('meta-report-until')?.value;
+            const params = new URLSearchParams();
+            if (localPreset === 'custom' && since && until) {
+                params.append('date_preset', 'custom');
+                params.append('since', since);
+                params.append('until', until);
+            } else {
+                params.append('date_preset', localPreset);
+            }
+            preset = localPreset;
+            url += `?${params.toString()}`;
         }
         
         const tbody = document.getElementById('meta-report-table');
