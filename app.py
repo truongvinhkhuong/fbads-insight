@@ -1411,6 +1411,10 @@ def api_meta_report_insights():
     """
     try:
         date_preset = request.args.get('date_preset', 'last_30d').strip()
+        since = (request.args.get('since') or '').strip()
+        until = (request.args.get('until') or '').strip()
+        filter_brand = (request.args.get('brand') or '').strip()
+        filter_campaign_id = (request.args.get('campaign_id') or '').strip()
         token = get_access_token()
         
         if not token:
