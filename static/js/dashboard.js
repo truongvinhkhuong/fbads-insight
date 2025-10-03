@@ -97,21 +97,10 @@ function extractBrandFromCampaignName(campaignName) {
     
     const nameLower = campaignName.toLowerCase();
     
-    if (nameLower.includes('bbi') || nameLower.includes('biz')) {
-        return 'BBI';
-    } else if (nameLower.includes('meta') || nameLower.includes('facebook')) {
-        return 'Meta';
-    } else if (nameLower.includes('google')) {
-        return 'Google';
-    } else if (nameLower.includes('tiktok')) {
-        return 'TikTok';
-    } else {
-        const words = campaignName.split();
-        if (words.length > 0) {
-            return words[0].substring(0, 20);
-        }
-        return 'Unknown';
-    }
+    if (nameLower.includes('ls2')) return 'LS2';
+    if (nameLower.includes('bulldog')) return 'Bulldog';
+    if (nameLower.includes('ego')) return 'EGO';
+    return 'Unknown';
 }
 
 // Manual refresh

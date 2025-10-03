@@ -801,6 +801,14 @@ def api_campaign_breakdown():
 def api_daily_breakdowns():
     try:
         date_preset = request.args.get('date_preset', 'last_30d').strip()
+        since = (request.args.get('since') or '').strip()
+        until = (request.args.get('until') or '').strip()
+        filter_brand = (request.args.get('brand') or '').strip()
+        filter_campaign_id = (request.args.get('campaign_id') or '').strip()
+        since = (request.args.get('since') or '').strip()
+        until = (request.args.get('until') or '').strip()
+        filter_brand = (request.args.get('brand') or '').strip()
+        filter_campaign_id = (request.args.get('campaign_id') or '').strip()
         token = get_access_token()
         if not token:
             return jsonify({'error': 'Missing access token'}), 500
@@ -885,7 +893,7 @@ def api_campaign_ads():
         token = get_access_token()
         base_url = 'https://graph.facebook.com/v23.0'
 
-        ads_res = requests.get(f"{base_url}/{campaign_id}/ads", params={'access_token': token, 'fields': 'id,name,status,created_time', 'limit': 50}, timeout=30)
+        ads_res = requests.get(f"{base_url}/{campaign_id}/ads", params={'access_token': token, 'fields': 'id,name,adset_id,status,created_time', 'limit': 50}, timeout=30)
         ads_data = ads_res.json()
         if ads_res.status_code != 200:
             err = ads_data.get('error', {})
@@ -910,10 +918,62 @@ def api_campaign_ads():
         logger.error(f"Lỗi /api/campaign-ads: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/campaign-adsets')
+def api_campaign_adsets():
+    try:
+        campaign_id = request.args.get('campaign_id', '').strip()
+        if not campaign_id:
+            return jsonify({'error': 'campaign_id is required', 'items': []}), 400
+        token = get_access_token()
+        base_url = 'https://graph.facebook.com/v23.0'
+        res = requests.get(f"{base_url}/{campaign_id}/adsets", params={'access_token': token, 'fields': 'id,name,status,campaign_id', 'limit': 100}, timeout=30)
+        data = res.json()
+        if res.status_code != 200:
+            err = data.get('error', {})
+            if err.get('code') == 190:
+                return jsonify({'error': err, 'token_expired': True, 'items': []})
+            return jsonify({'error': err or {'message': 'Unknown error'}, 'items': []})
+        return jsonify({'items': data.get('data', [])})
+    except Exception as e:
+        logger.error(f"Lỗi /api/campaign-adsets: {e}")
+        return jsonify({'error': str(e), 'items': []}), 500
+
+@app.route('/api/adset-ads')
+def api_adset_ads():
+    try:
+        adset_id = request.args.get('adset_id', '').strip()
+        date_preset = request.args.get('date_preset', 'last_30d')
+        if not adset_id:
+            return jsonify({'error': 'adset_id is required', 'items': []}), 400
+        token = get_access_token()
+        base_url = 'https://graph.facebook.com/v23.0'
+        ads_res = requests.get(f"{base_url}/{adset_id}/ads", params={'access_token': token, 'fields': 'id,name,status,created_time', 'limit': 100}, timeout=30)
+        ads_data = ads_res.json()
+        if ads_res.status_code != 200:
+            err = ads_data.get('error', {})
+            if err.get('code') == 190:
+                return jsonify({'error': err, 'token_expired': True, 'items': []})
+            return jsonify({'error': err or {'message': 'Unknown error'}, 'items': []})
+        ads = ads_data.get('data', [])
+        result = []
+        for ad in ads[:50]:
+            ins_params = {'access_token': token, 'fields': 'impressions,clicks,spend,ctr,cpc,cpm,reach', 'date_preset': date_preset}
+            ins_res = requests.get(f"{base_url}/{ad['id']}/insights", params=ins_params, timeout=30)
+            ins = ins_res.json().get('data', []) if ins_res.status_code == 200 else []
+            result.append({'ad': ad, 'insights': ins[0] if ins else {}})
+        return jsonify({'items': result})
+    except Exception as e:
+        logger.error(f"Lỗi /api/adset-ads: {e}")
+        return jsonify({'error': str(e), 'items': []}), 500
+
 @app.route('/api/daily-tracking')
 def api_daily_tracking():
     try:
         date_preset = request.args.get('date_preset', 'last_30d').strip()
+        since = (request.args.get('since') or '').strip()
+        until = (request.args.get('until') or '').strip()
+        filter_brand = (request.args.get('brand') or '').strip()
+        filter_campaign_id = (request.args.get('campaign_id') or '').strip()
         token = get_access_token()
         
         if not token:
@@ -928,6 +988,23 @@ def api_daily_tracking():
         if not campaigns:
             return jsonify({'error': 'No campaigns found', 'daily': [], 'totals': {}})
         
+        # Apply brand and campaign filters if provided
+        def _extract_brand(name: str) -> str:
+            try:
+                return extract_brand_from_campaign_name(name or '')
+            except Exception:
+                return 'Unknown'
+        
+        filtered_campaigns = campaigns
+        if filter_brand and filter_brand != 'all':
+            filtered_campaigns = [c for c in filtered_campaigns if _extract_brand(c.get('campaign_name', '')) == filter_brand]
+        if filter_campaign_id and filter_campaign_id != 'all':
+            filtered_campaigns = [c for c in filtered_campaigns if c.get('campaign_id') == filter_campaign_id]
+        
+        # Fallback if filters remove all
+        if not filtered_campaigns:
+            filtered_campaigns = []
+        
         base_url = 'https://graph.facebook.com/v23.0'
         all_daily_data = []
         
@@ -937,7 +1014,7 @@ def api_daily_tracking():
         max_campaigns = 20  # Increase limit to include more campaigns
         
         # Sort campaigns: ACTIVE first, then PAUSED, to prioritize active campaigns
-        sorted_campaigns = sorted(campaigns, key=lambda x: (x.get('status', '') != 'ACTIVE', x.get('campaign_id', '')))
+        sorted_campaigns = sorted(filtered_campaigns, key=lambda x: (x.get('status', '') != 'ACTIVE', x.get('campaign_id', '')))
         
         for campaign in sorted_campaigns[:max_campaigns]:
             campaign_id = campaign.get('campaign_id')
@@ -970,6 +1047,11 @@ def api_daily_tracking():
                     'date_preset': date_preset,
                     'time_increment': 1
                 }
+                # Override with custom range if provided
+                if since and until:
+                    params['date_preset'] = 'custom'
+                    params['since'] = since
+                    params['until'] = until
                 
                 # For PAUSED campaigns, try with longer date range if initial request fails
                 fallback_presets = ['last_90d', 'lifetime'] if campaign_status == 'PAUSED' else []
@@ -1343,6 +1425,17 @@ def api_meta_report_insights():
         if not campaigns:
             return jsonify({'error': 'No campaigns found', 'monthly_data': [], 'brand_analysis': {}, 'content_analysis': {}})
         
+        # Apply brand and campaign filters if provided
+        def _extract_brand(name: str) -> str:
+            try:
+                return extract_brand_from_campaign_name(name or '')
+            except Exception:
+                return 'Unknown'
+        if filter_brand and filter_brand != 'all':
+            campaigns = [c for c in campaigns if _extract_brand(c.get('campaign_name', '')) == filter_brand]
+        if filter_campaign_id and filter_campaign_id != 'all':
+            campaigns = [c for c in campaigns if c.get('campaign_id') == filter_campaign_id]
+        
         base_url = 'https://graph.facebook.com/v23.0'
         
         # Initialize analysis data structures
@@ -1367,10 +1460,15 @@ def api_meta_report_insights():
                 url = f"{base_url}/{campaign_id}/insights"
                 params = {
                     'access_token': token,
-                    'fields': 'impressions,clicks,spend,ctr,cpc,cpm,reach,actions',
+                    'fields': 'impressions,clicks,spend,ctr,cpc,cpm,reach,actions,inline_link_clicks,video_play_actions',
                     'date_preset': date_preset,
                     'time_increment': 1
                 }
+                # Custom date range support if provided
+                if since and until:
+                    params['date_preset'] = 'custom'
+                    params['since'] = since
+                    params['until'] = until
                 
                 response = requests.get(url, params=params, timeout=10)
                 logger.info(f"Campaign {campaign_id}: Status {response.status_code}")
@@ -1679,20 +1777,14 @@ def extract_brand_from_campaign_name(campaign_name):
     # Simple brand extraction logic - can be enhanced
     name_lower = campaign_name.lower()
     
-    # Common brand patterns
-    if 'bbi' in name_lower or 'biz' in name_lower:
-        return 'BBI'
-    elif 'meta' in name_lower or 'facebook' in name_lower:
-        return 'Meta'
-    elif 'google' in name_lower:
-        return 'Google'
-    elif 'tiktok' in name_lower:
-        return 'TikTok'
+    # Constrain to 3 brands only
+    if 'ls2' in name_lower:
+        return 'LS2'
+    elif 'bulldog' in name_lower:
+        return 'Bulldog'
+    elif 'ego' in name_lower:
+        return 'EGO'
     else:
-        # Extract first word as brand
-        words = campaign_name.split()
-        if words:
-            return words[0][:20]  # Limit length
         return 'Unknown'
 
 def extract_content_format_from_campaign_name(campaign_name):

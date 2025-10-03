@@ -56,14 +56,26 @@ class GlobalFilters {
         
         document.getElementById('filter-campaign').addEventListener('change', (e) => {
             this.filters.campaign = e.target.value;
-            this.updateAdsetOptions();
-            this.notifyChange();
+            // reset dependent selections
+            this.filters.adset = 'all';
+            this.filters.ad = 'all';
+            // fetch adsets for selected campaign, then update options
+            this.loadAdsetsAndAds().then(() => {
+                this.updateAdsetOptions();
+                this.updateAdOptions();
+                this.notifyChange();
+            });
         });
         
         document.getElementById('filter-adset').addEventListener('change', (e) => {
             this.filters.adset = e.target.value;
-            this.updateAdOptions();
-            this.notifyChange();
+            // reset ad selection
+            this.filters.ad = 'all';
+            // fetch ads for selected adset, then update options
+            this.loadAdsetsAndAds().then(() => {
+                this.updateAdOptions();
+                this.notifyChange();
+            });
         });
         
         document.getElementById('filter-ad').addEventListener('change', (e) => {
@@ -119,30 +131,44 @@ class GlobalFilters {
         
         const nameLower = campaignName.toLowerCase();
         
-        // Common brand patterns
-        if (nameLower.includes('bbi') || nameLower.includes('biz')) {
-            return 'BBI';
-        } else if (nameLower.includes('meta') || nameLower.includes('facebook')) {
-            return 'Meta';
-        } else if (nameLower.includes('google')) {
-            return 'Google';
-        } else if (nameLower.includes('tiktok')) {
-            return 'TikTok';
-        } else {
-            // Extract first word as brand
-            const words = campaignName.split();
-            if (words.length > 0) {
-                return words[0].substring(0, 20);
-            }
-            return 'Unknown';
-        }
+        // Constrain to 3 brands: LS2, Bulldog, EGO
+        if (nameLower.includes('ls2')) return 'LS2';
+        if (nameLower.includes('bulldog')) return 'Bulldog';
+        if (nameLower.includes('ego')) return 'EGO';
+        
+        return 'Unknown';
     }
     
     async loadAdsetsAndAds() {
-        // This would typically load ad sets and ads data
-        // For now, we'll use campaign data as a fallback
-        this.data.adsets = [];
-        this.data.ads = [];
+        try {
+            const selectedCampaignId = this.filters.campaign !== 'all' ? this.filters.campaign : null;
+            if (!selectedCampaignId) {
+                this.data.adsets = [];
+                this.data.ads = [];
+                return;
+            }
+            // Load adsets for selected campaign
+            const adsetsRes = await fetch(`/api/campaign-adsets?campaign_id=${encodeURIComponent(selectedCampaignId)}`);
+            const adsetsJson = await adsetsRes.json();
+            this.data.adsets = Array.isArray(adsetsJson.items) ? adsetsJson.items : [];
+            // If adset is selected, load ads for that adset
+            if (this.filters.adset && this.filters.adset !== 'all') {
+                const adsRes = await fetch(`/api/adset-ads?adset_id=${encodeURIComponent(this.filters.adset)}`);
+                const adsJson = await adsRes.json();
+                // Normalize to flat structure id/name
+                this.data.ads = Array.isArray(adsJson.items) ? adsJson.items.map(x => ({
+                    id: x.ad?.id || x.id,
+                    name: x.ad?.name || x.name,
+                    adset_id: this.filters.adset
+                })) : [];
+            } else {
+                this.data.ads = [];
+            }
+        } catch (e) {
+            console.warn('Failed to load adsets/ads', e);
+            this.data.adsets = [];
+            this.data.ads = [];
+        }
     }
     
     populateFilterOptions() {
@@ -155,8 +181,8 @@ class GlobalFilters {
     populateBrandOptions() {
         const select = document.getElementById('filter-brand');
         select.innerHTML = '<option value="all" selected>Tất cả Brand</option>';
-        
-        this.data.brands.forEach(brand => {
+        const allowed = ['LS2','Bulldog','EGO'];
+        allowed.forEach(brand => {
             const option = document.createElement('option');
             option.value = brand;
             option.textContent = brand;
@@ -188,27 +214,12 @@ class GlobalFilters {
     populateAdsetOptions() {
         const select = document.getElementById('filter-adset');
         select.innerHTML = '<option value="all" selected>Tất cả Nhóm QC</option>';
-        
-        // For now, we'll use campaigns as ad sets
-        // In a real implementation, you'd load actual ad set data
-        let filteredCampaigns = this.data.campaigns;
-        
-        if (this.filters.brand !== 'all') {
-            filteredCampaigns = filteredCampaigns.filter(campaign => 
-                this.extractBrandFromCampaignName(campaign.campaign_name) === this.filters.brand
-            );
-        }
-        
-        if (this.filters.campaign !== 'all') {
-            filteredCampaigns = filteredCampaigns.filter(campaign => 
-                campaign.campaign_id === this.filters.campaign
-            );
-        }
-        
-        filteredCampaigns.forEach(campaign => {
+        // Use loaded adsets filtered by selected campaign
+        const adsets = (this.data.adsets || []).filter(a => a.campaign_id === this.filters.campaign);
+        adsets.forEach(as => {
             const option = document.createElement('option');
-            option.value = campaign.campaign_id;
-            option.textContent = `Ad Set: ${campaign.campaign_name || campaign.campaign_id}`;
+            option.value = as.id;
+            option.textContent = as.name || as.id;
             select.appendChild(option);
         });
     }
@@ -216,27 +227,12 @@ class GlobalFilters {
     populateAdOptions() {
         const select = document.getElementById('filter-ad');
         select.innerHTML = '<option value="all" selected>Tất cả Quảng Cáo</option>';
-        
-        // For now, we'll use campaigns as ads
-        // In a real implementation, you'd load actual ad data
-        let filteredCampaigns = this.data.campaigns;
-        
-        if (this.filters.brand !== 'all') {
-            filteredCampaigns = filteredCampaigns.filter(campaign => 
-                this.extractBrandFromCampaignName(campaign.campaign_name) === this.filters.brand
-            );
-        }
-        
-        if (this.filters.campaign !== 'all') {
-            filteredCampaigns = filteredCampaigns.filter(campaign => 
-                campaign.campaign_id === this.filters.campaign
-            );
-        }
-        
-        filteredCampaigns.forEach(campaign => {
+        // Use loaded ads tied to selected adset
+        const ads = (this.data.ads || []);
+        ads.forEach(ad => {
             const option = document.createElement('option');
-            option.value = campaign.campaign_id;
-            option.textContent = `Ad: ${campaign.campaign_name || campaign.campaign_id}`;
+            option.value = ad.id;
+            option.textContent = ad.name || ad.id;
             select.appendChild(option);
         });
     }
@@ -445,5 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Make it available globally
     window.globalFilters = globalFilters;
+    // Trigger initial apply so all sections receive default filters
+    try { globalFilters.applyFilters(); } catch (e) { console.warn('Initial filter apply failed', e); }
 });
 
